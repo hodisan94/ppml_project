@@ -9,6 +9,9 @@ from sklearn.compose import ColumnTransformer
 import matplotlib.pyplot as plt
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline  
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+
 
 
 
@@ -74,36 +77,36 @@ def split_features_labels(df):
 #     return model
 
 
-def train_logistic_regression(X_train, y_train):
-    """
-    Train a logistic regression model on the given training data.
-    Applies SMOTE to rebalance the training set.
+# def train_logistic_regression(X_train, y_train):
+#     """
+#     Train a logistic regression model on the given training data.
+#     Applies SMOTE to rebalance the training set.
 
-    Args:
-        X_train: Training features (NumPy array).
-        y_train: Training labels (NumPy array).
+#     Args:
+#         X_train: Training features (NumPy array).
+#         y_train: Training labels (NumPy array).
 
-    Returns:
-        Trained LogisticRegression model.
-    """
-    # Apply SMOTE
-    smote = SMOTE(random_state=42)
-    X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
+#     Returns:
+#         Trained LogisticRegression model.
+#     """
+#     # Apply SMOTE
+#     smote = SMOTE(random_state=42)
+#     X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
 
-    print(f"SMOTE applied: {sum(y_resampled==1)} positives, {sum(y_resampled==0)} negatives")
+#     print(f"SMOTE applied: {sum(y_resampled==1)} positives, {sum(y_resampled==0)} negatives")
 
-    # Train the model
-    model = LogisticRegression(
-        solver="liblinear",
-        max_iter=20000,
-        random_state=42,
-        C=0.1,
-        class_weight="balanced"  # optional: you can remove this now, SMOTE already balances
-    )
-    model.fit(X_resampled, y_resampled)
+#     # Train the model
+#     model = LogisticRegression(
+#         solver="liblinear",
+#         max_iter=5000,
+#         random_state=42,
+#         C=0.1,
+#         class_weight="balanced"  # optional: you can remove this now, SMOTE already balances
+#     )
+#     model.fit(X_resampled, y_resampled)
 
-    print("✅ Logistic regression training complete.")
-    return model
+#     print("Logistic regression training complete.")
+#     return model
 
 
 
@@ -236,6 +239,133 @@ def grid_search_logistic_regression(X, y):
     return grid_search.best_estimator_, grid_search
 
 
+# def train_random_forest(X_train, y_train):
+#     """
+#     Train a Random Forest classifier on the training data.
+
+#     Args:
+#         X_train: Training features
+#         y_train: Training labels
+
+#     Returns:
+#         Trained RandomForestClassifier model
+#     """
+#     model = RandomForestClassifier(
+#         n_estimators=100,
+#         max_depth=None,
+#         random_state=42,
+#         class_weight="balanced"
+#     )
+#     model.fit(X_train, y_train)
+
+#     print("Random Forest training complete.")
+#     return model
+
+
+# def train_xgboost(X_train, y_train):
+#     """
+#     Train an XGBoost classifier on the training data.
+
+#     Args:
+#         X_train: Training features
+#         y_train: Training labels
+
+#     Returns:
+#         Trained XGBClassifier model
+#     """
+#     model = XGBClassifier(
+#         n_estimators=100,
+#         learning_rate=0.1,
+#         max_depth=5,
+#         use_label_encoder=False,
+#         eval_metric='logloss',
+#         random_state=42,
+#         scale_pos_weight=(sum(y_train == 0) / sum(y_train == 1))  # handles imbalance
+#     )
+#     model.fit(X_train, y_train)
+
+#     print("XGBoost training complete.")
+#     return model
+
+
+def grid_search_random_forest(X, y):
+    """
+    Grid search for Random Forest hyperparameters using cross-validation.
+
+    Returns:
+        Best trained model and grid search object.
+    """
+    model = RandomForestClassifier(random_state=42)
+
+    param_grid = {
+        'n_estimators': [100, 200],
+        'max_depth': [None, 10, 20],
+        'min_samples_split': [2, 5],
+        'class_weight': ['balanced']
+    }
+
+    grid = GridSearchCV(
+        estimator=model,
+        param_grid=param_grid,
+        scoring='roc_auc',
+        cv=5,
+        n_jobs=-1,
+        verbose=2
+    )
+
+    print("*****Running Grid Search for Random Forest...*****")
+    grid.fit(X, y)
+
+    print("*****RF Grid Search Done.*****")
+    print("Best Params:", grid.best_params_)
+    print("Best ROC AUC:", grid.best_score_)
+
+    return grid.best_estimator_, grid
+
+
+
+def grid_search_xgboost(X, y):
+    """
+    Grid search for XGBoost hyperparameters using cross-validation.
+
+    Returns:
+        Best trained model and grid search object.
+    """
+    model = XGBClassifier(
+        # use_label_encoder=False,
+        eval_metric='logloss',
+        random_state=42
+    )
+
+    pos_weight = sum(y == 0) / sum(y == 1)
+
+    param_grid = {
+        'n_estimators': [100, 200],
+        'learning_rate': [0.05, 0.1],
+        'max_depth': [3, 5, 7],
+        'scale_pos_weight': [pos_weight]  # to handle imbalance
+    }
+
+    grid = GridSearchCV(
+        estimator=model,
+        param_grid=param_grid,
+        scoring='roc_auc',
+        cv=5,
+        n_jobs=-1,
+        verbose=2
+    )
+
+    print("*****Running Grid Search for XGBoost...*****")
+    grid.fit(X, y)
+
+    print("*****XGB Grid Search Done.*****")
+    print("Best Params:", grid.best_params_)
+    print("Best ROC AUC:", grid.best_score_)
+
+    return grid.best_estimator_, grid
+
+
+
 
 
     
@@ -259,8 +389,47 @@ if __name__ == "__main__":
 
     # # Evaluate
     metrics = evaluate_model(model, X_test, y_test)
+    
+    
+    # --- Random Forest ---
+    # rf_model = train_random_forest(X_train, y_train)
+    # rf_metrics = evaluate_model(rf_model, X_test, y_test)
+    # save_metrics(rf_metrics, filename="evaluation/rf_metrics.json")
+    # plot_roc_curve(rf_model, X_test, y_test, filename="evaluation/rf_roc_curve.png")
+    
+    
+    
+    # # --- XGBoost ---
+    # xgb_model = train_xgboost(X_train, y_train)
+    # xgb_metrics = evaluate_model(xgb_model, X_test, y_test)
+    # save_metrics(xgb_metrics, filename="evaluation/xgb_metrics.json")
+    # plot_roc_curve(xgb_model, X_test, y_test, filename="evaluation/xgb_roc_curve.png")
+
+    # Run Random Forest grid search
+    rf_model, rf_grid = grid_search_random_forest(X_train, y_train)
+    rf_metrics = evaluate_model(rf_model, X_test, y_test)
+    save_metrics(rf_metrics, filename="evaluation/rf_metrics.json")
+    plot_roc_curve(rf_model, X_test, y_test, filename="evaluation/rf_roc_curve.png")
+
+    # Run XGBoost grid search
+    xgb_model, xgb_grid = grid_search_xgboost(X_train, y_train)
+    xgb_metrics = evaluate_model(xgb_model, X_test, y_test)
+    save_metrics(xgb_metrics, filename="evaluation/xgb_metrics.json")
+    plot_roc_curve(xgb_model, X_test, y_test, filename="evaluation/xgb_roc_curve.png")
+
+
 
     # # Save results
     save_metrics(metrics)
     plot_roc_curve(model, X_test, y_test)
+    
+    print("\n--- Logistic Regression Results ---")
+    metrics = evaluate_model(model, X_test, y_test)
+
+    print("\n--- Random Forest Results ---")
+    rf_metrics = evaluate_model(rf_model, X_test, y_test)
+    
+    print("\n--- XGBoost Results ---")
+    xgb_metrics = evaluate_model(xgb_model, X_test, y_test)
+
 

@@ -40,16 +40,27 @@ df = df.drop(columns=["Hospital"])
 df["Gender"] = df["Gender"].map({"Male": 0, "Female": 1})
 
 # One-hot encode remaining categoricals
+# categorical_cols = [
+#     "Blood Type",
+#     "Medical Condition",
+#     "Insurance Provider",
+#     "Admission Type",
+#     "Medication",
+#     "Test Results"
+# ]
+
 categorical_cols = [
-    "Blood Type",
+    "Blood Type",            # Optional – you can test with or without
     "Medical Condition",
-    "Insurance Provider",
-    "Admission Type",
-    "Medication",
-    "Test Results"
+    "Admission Type"
 ]
 
+# One-hot encode selected categorical columns
 df = pd.get_dummies(df, columns=categorical_cols)
+
+# Remove leftover string columns that were not encoded
+df = df.drop(columns=["Medication", "Test Results", "Insurance Provider"], errors="ignore")
+
 
 print("Final columns:")
 print(df.columns)
@@ -66,6 +77,14 @@ print(df["Age"].head())
 print("Normalized 'Billing Amount' sample:")
 print(df["Billing Amount"].head())
 
+
+# Convert any bool columns to int (important for TF/PyTorch)
+df = df.astype({col: 'int32' for col in df.select_dtypes('bool').columns})
+
+# Move label to last column
+target_col = "Readmitted"
+cols = [col for col in df.columns if col != target_col] + [target_col]
+df = df[cols]
 
 # Shuffle the dataset
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
@@ -89,6 +108,6 @@ for i in range(num_clients):
 
 # Save the full cleaned dataset
 os.makedirs("data/processed", exist_ok=True)
-
 df.to_csv("data/processed/full_preprocessed.csv", index=False)
 print("Saved full preprocessed dataset")
+

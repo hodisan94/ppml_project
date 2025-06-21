@@ -1,7 +1,9 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow_privacy.privacy.optimizers import dp_optimizer_keras
-from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy
+# from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy
+from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy_lib
+
 from sklearn.model_selection import train_test_split
 import pandas as pd
 from pathlib import Path
@@ -90,7 +92,7 @@ class DPLogisticRegression:
         """Compute privacy spent using TF Privacy analysis"""
         if self.use_dp and self.training_steps > 0:
             steps = self.training_steps
-            epsilon, _ = compute_dp_sgd_privacy.compute_dp_sgd_privacy(
+            epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
                 n=dataset_size,
                 batch_size=batch_size,
                 noise_multiplier=self.dp_config.noise_multiplier,
@@ -175,7 +177,7 @@ def compute_privacy_budget(dataset_sizes, batch_size, noise_multiplier, epochs, 
     """
     total_epsilon = 0
     for size in dataset_sizes:
-        epsilon, _ = compute_dp_sgd_privacy.compute_dp_sgd_privacy(
+        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
             n=size,
             batch_size=batch_size,
             noise_multiplier=noise_multiplier,
@@ -194,7 +196,7 @@ def analyze_privacy_utility_tradeoff(noise_multipliers, dataset_size, batch_size
     results = []
     
     for noise_mult in noise_multipliers:
-        epsilon, _ = compute_dp_sgd_privacy.compute_dp_sgd_privacy(
+        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
             n=dataset_size,
             batch_size=batch_size,
             noise_multiplier=noise_mult,

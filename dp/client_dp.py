@@ -7,25 +7,22 @@ from utils import load_client_data
 
 # Try different import paths for tensorflow-privacy based on version
 try:
+    # TF-Privacy ≥0.7.0
     from tensorflow_privacy.privacy.optimizers.dp_optimizer_keras import DPKerasSGDOptimizer
 except ImportError:
-    try:
-        from tensorflow_privacy.privacy.optimizers.dp_optimizer import DPGradientDescentGaussianOptimizer
+    # fallback to the older optimizer class name
+    from tensorflow_privacy.privacy.optimizers.dp_optimizer import (
+        DPGradientDescentGaussianOptimizer as DPKerasSGDOptimizer
+    )
 
-        DPKerasSGDOptimizer = None
-    except ImportError:
-        print("Could not import DP optimizer. Using regular optimizer.")
-        DPKerasSGDOptimizer = None
-
+# — privacy accounting import —
 try:
-    from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy
+    # direct import of the function
+    from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy_lib
 except ImportError:
-    try:
-        from tensorflow_privacy.privacy.analysis.compute_dp_sgd_privacy import compute_dp_sgd_privacy
-    except ImportError:
-        print("Could not import privacy analysis. Privacy computation disabled.")
-        compute_dp_sgd_privacy = None
-
+    # if not available, disable privacy accounting
+    compute_dp_sgd_privacy = None
+    print("Warning: compute_dp_sgd_privacy not found; privacy accounting disabled.")
 # DP-SGD configuration
 noise_multiplier = 1.1
 l2_norm_clip = 1.0

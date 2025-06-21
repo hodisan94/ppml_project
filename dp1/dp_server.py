@@ -1,5 +1,12 @@
+from __future__ import annotations    # (optional, defers all annotation evaluation)
 import flwr as flower
 from flwr.server.strategy import FedAvg
+from typing import List, Tuple, Dict, Optional, Union
+import sys
+import logging
+import flwr as flower
+from flwr.server.client_proxy import ClientProxy
+from flwr.common import EvaluateRes, Scalar
 from typing import List, Tuple, Dict, Optional
 import sys
 
@@ -12,13 +19,14 @@ class DPFedAvg(FedAvg):
         super().__init__(*args, **kwargs)
         self.privacy_metrics = {}
         self.round_num = 0
-    
+
     def aggregate_evaluate(
-        self,
-        server_round: int,
-        results: List[Tuple[flower.server.client_proxy.ClientProxy, flower.common.EvaluateRes]],
-        failures: List[Tuple[flower.server.client_proxy.ClientProxy, flower.common.FitRes] | Tuple[flower.server.client_proxy.ClientProxy, BaseException]],
-    ) -> Tuple[Optional[float], Dict[str, flower.common.Scalar]]:
+            self,
+            server_round: int,
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[ClientProxy, BaseException]],
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+
         """Aggregate evaluation results and track privacy metrics"""
         
         # Standard aggregation
@@ -95,6 +103,7 @@ def main():
     print(f"[SERVER] Waiting for {NUM_CLIENTS} clients to connect...")
 
     try:
+        logging.basicConfig(level=logging.DEBUG)
         # Start server
         flower.server.start_server(
             server_address="127.0.0.1:8086",

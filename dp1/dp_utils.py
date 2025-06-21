@@ -4,6 +4,7 @@ from tensorflow_privacy.privacy.optimizers import dp_optimizer_keras
 from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy
 from sklearn.model_selection import train_test_split
 import pandas as pd
+from pathlib import Path
 
 
 class DPConfig:
@@ -143,7 +144,14 @@ def load_client_data(client_id):
     Args: client_id (int): ID of the client (1-5).
     Returns: X_train, X_test, y_train, y_test (Features and labels split).
     """
-    df = pd.read_csv(f"./data/clients/client_{client_id}.csv")
+    project_root = Path(__file__).resolve().parent.parent
+
+    # Build the path to data/clients/client_{id}.csv
+    csv_path = project_root / "data" / "clients" / f"client_{client_id}.csv"
+    print(f"Loading client data from: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+    # df = pd.read_csv(f"./data/clients/client_{client_id}.csv")
     X = df.drop("Readmitted", axis=1).values
     y = df["Readmitted"].values
     return train_test_split(X, y, test_size=0.2, random_state=42)

@@ -142,7 +142,7 @@ def evaluate_model(model, X_test, y_test):
 
 
 
-def save_metrics(metrics, filename="evaluation/metrics.json"):
+def save_metrics(metrics, filename="evaluation/lr_metrics.json"):
     """
     Save evaluation metrics to a JSON file.
 
@@ -372,7 +372,7 @@ def grid_search_xgboost(X, y):
 
 if __name__ == "__main__":
     # Load
-    df = load_dataset("data/processed/full_preprocessed.csv")
+    df = load_dataset("../data/processed/full_preprocessed.csv")
     
     # Prepare
     X, y = split_features_labels(df)

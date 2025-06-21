@@ -1,6 +1,17 @@
-flower
-tensorflow
-tensorflow-privacy
-pandas
-scikit-learn
-matplotlib
+# Core ML and FL libraries
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+flwr==1.3.0
+
+# Differential Privacy
+tensorflow>=2.8.0,<2.16.0
+tensorflow-privacy>=0.8.0
+
+# Additional utilities
+matplotlib>=3.5.0
+seaborn>=0.11.0
+tqdm>=4.64.0
+
+# For potential future compatibility
+protobuf>=3.19.0,<4.0.0

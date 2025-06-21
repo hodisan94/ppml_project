@@ -1,0 +1,126 @@
+"C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\.venv\Scripts\python.exe" "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\main.py"
+[MAIN] Starting Flower server...
+[MAIN] Starting client 1...
+[MAIN] Starting client 2...
+[CLIENT 1] INFO flwr 2025-06-20 15:19:19,556 | grpc.py:50 | Opened insecure gRPC connection (no certificates were passed)
+[CLIENT 1] DEBUG flwr 2025-06-20 15:19:19,558 | connection.py:38 | ChannelConnectivity.IDLE
+[CLIENT 1] DEBUG flwr 2025-06-20 15:19:19,559 | connection.py:38 | ChannelConnectivity.CONNECTING
+[CLIENT 1] DEBUG flwr 2025-06-20 15:19:19,561 | connection.py:38 | ChannelConnectivity.READY
+[CLIENT 1] [CLIENT 1] connected to server
+[MAIN] Starting client 3...
+[CLIENT 2] INFO flwr 2025-06-20 15:19:21,474 | grpc.py:50 | Opened insecure gRPC connection (no certificates were passed)
+[CLIENT 2] DEBUG flwr 2025-06-20 15:19:21,475 | connection.py:38 | ChannelConnectivity.IDLE
+[CLIENT 2] DEBUG flwr 2025-06-20 15:19:21,477 | connection.py:38 | ChannelConnectivity.CONNECTING
+[CLIENT 2] DEBUG flwr 2025-06-20 15:19:21,478 | connection.py:38 | ChannelConnectivity.READY
+[MAIN] Starting client 4...
+[CLIENT 3] INFO flwr 2025-06-20 15:19:23,994 | grpc.py:50 | Opened insecure gRPC connection (no certificates were passed)
+[CLIENT 3] DEBUG flwr 2025-06-20 15:19:23,998 | connection.py:38 | ChannelConnectivity.IDLE
+[CLIENT 3] DEBUG flwr 2025-06-20 15:19:23,998 | connection.py:38 | ChannelConnectivity.CONNECTING
+[CLIENT 3] DEBUG flwr 2025-06-20 15:19:24,000 | connection.py:38 | ChannelConnectivity.READY
+[MAIN] Starting client 5...
+[CLIENT 4] INFO flwr 2025-06-20 15:19:26,017 | grpc.py:50 | Opened insecure gRPC connection (no certificates were passed)
+[CLIENT 4] DEBUG flwr 2025-06-20 15:19:26,019 | connection.py:38 | ChannelConnectivity.IDLE
+[CLIENT 4] DEBUG flwr 2025-06-20 15:19:26,020 | connection.py:38 | ChannelConnectivity.CONNECTING
+[CLIENT 4] DEBUG flwr 2025-06-20 15:19:26,021 | connection.py:38 | ChannelConnectivity.READY
+[MAIN] Started 5 clients. Waiting for federated learning to complete...
+[CLIENT 5] INFO flwr 2025-06-20 15:19:28,018 | grpc.py:50 | Opened insecure gRPC connection (no certificates were passed)
+[CLIENT 5] DEBUG flwr 2025-06-20 15:19:28,021 | connection.py:38 | ChannelConnectivity.IDLE
+[CLIENT 5] DEBUG flwr 2025-06-20 15:19:28,023 | connection.py:38 | ChannelConnectivity.CONNECTING
+[CLIENT 5] DEBUG flwr 2025-06-20 15:19:28,023 | connection.py:38 | ChannelConnectivity.READY
+[CLIENT 3] [CLIENT 3] connected to server
+[CLIENT 4] [CLIENT 4] connected to server
+[CLIENT 1] [CLIENT 1] connected to server
+[CLIENT 5] [CLIENT 5] connected to server
+[CLIENT 2] [CLIENT 2] connected to server
+[CLIENT 2] [CLIENT 2] accuracy: 0.8919[CLIENT 3] [CLIENT 3] accuracy: 0.8932
+
+[CLIENT 5] [CLIENT 5] accuracy: 0.9005
+[CLIENT 1] [CLIENT 1] accuracy: 0.8991
+[CLIENT 4] [CLIENT 4] accuracy: 0.8919
+[CLIENT 3] [CLIENT 3] connected to server
+[CLIENT 4] [CLIENT 4] connected to server
+[CLIENT 1] [CLIENT 1] connected to server
+[CLIENT 5] [CLIENT 5] connected to server
+[CLIENT 2] [CLIENT 2] connected to server
+[CLIENT 5] [CLIENT 5] accuracy: 0.9005
+[CLIENT 2] [CLIENT 2] accuracy: 0.8919
+[CLIENT 1] [CLIENT 1] accuracy: 0.8991
+[CLIENT 3] [CLIENT 3] accuracy: 0.8932
+[CLIENT 4] [CLIENT 4] accuracy: 0.8919
+[CLIENT 4] [CLIENT 4] connected to server
+[CLIENT 5] [CLIENT 5] connected to server
+[CLIENT 3] [CLIENT 3] connected to server
+[CLIENT 1] [CLIENT 1] connected to server
+[CLIENT 2] [CLIENT 2] connected to server
+[CLIENT 4] [CLIENT 4] accuracy: 0.8919
+[CLIENT 1] [CLIENT 1] accuracy: 0.8991
+[CLIENT 2] [CLIENT 2] accuracy: 0.8919
+[CLIENT 3] [CLIENT 3] accuracy: 0.8932
+[CLIENT 5] [CLIENT 5] accuracy: 0.9005
+[CLIENT 4] [CLIENT 4] connected to server
+[CLIENT 3] [CLIENT 3] connected to server
+[CLIENT 1] [CLIENT 1] connected to server
+[CLIENT 5] [CLIENT 5] connected to server
+[CLIENT 2] [CLIENT 2] connected to server
+[CLIENT 3] [CLIENT 3] accuracy: 0.8932[CLIENT 2] [CLIENT 2] accuracy: 0.8919
+
+[CLIENT 5] [CLIENT 5] accuracy: 0.9005
+[CLIENT 4] [CLIENT 4] accuracy: 0.8919
+[CLIENT 1] [CLIENT 1] accuracy: 0.8991
+[CLIENT 4] [CLIENT 4] connected to server
+[CLIENT 5] [CLIENT 5] connected to server
+[CLIENT 1] [CLIENT 1] connected to server
+[CLIENT 3] [CLIENT 3] connected to server
+[CLIENT 2] [CLIENT 2] connected to server
+[CLIENT 2] [CLIENT 2] accuracy: 0.8919
+[CLIENT 1] [CLIENT 1] accuracy: 0.8991
+[CLIENT 4] [CLIENT 4] accuracy: 0.8919
+[CLIENT 3] [CLIENT 3] accuracy: 0.8932
+[CLIENT 5] [CLIENT 5] accuracy: 0.9005
+[CLIENT 3] DEBUG flwr 2025-06-20 15:19:28,371 | connection.py:109 | gRPC channel closed
+[CLIENT 3] INFO flwr 2025-06-20 15:19:28,371 | app.py:153 | Disconnect and shut down
+[CLIENT 5] DEBUG flwr 2025-06-20 15:19:28,372 | connection.py:109 | gRPC channel closed
+[CLIENT 4] DEBUG flwr 2025-06-20 15:19:28,373 | connection.py:109 | gRPC channel closed[CLIENT 2] DEBUG flwr 2025-06-20 15:19:28,373 | connection.py:109 | gRPC channel closed
+[CLIENT 5] INFO flwr 2025-06-20 15:19:28,373 | app.py:153 | Disconnect and shut down
+
+[CLIENT 4] INFO flwr 2025-06-20 15:19:28,373 | app.py:153 | Disconnect and shut down
+[CLIENT 2] INFO flwr 2025-06-20 15:19:28,373 | app.py:153 | Disconnect and shut down[CLIENT 1] DEBUG flwr 2025-06-20 15:19:28,373 | connection.py:109 | gRPC channel closed
+
+[CLIENT 1] INFO flwr 2025-06-20 15:19:28,373 | app.py:153 | Disconnect and shut down
+[MAIN] Client 2, Round 1, Accuracy: 0.8919
+[MAIN] Client 3, Round 1, Accuracy: 0.8932
+[MAIN] Client 5, Round 1, Accuracy: 0.9005
+[MAIN] Client 1, Round 1, Accuracy: 0.8991
+[MAIN] Client 4, Round 1, Accuracy: 0.8919
+[MAIN] Client 2, Round 2, Accuracy: 0.8919
+[MAIN] Client 5, Round 2, Accuracy: 0.9005
+[MAIN] Client 1, Round 2, Accuracy: 0.8991
+[MAIN] Client 3, Round 2, Accuracy: 0.8932
+[MAIN] Client 4, Round 2, Accuracy: 0.8919
+[MAIN] Client 4, Round 3, Accuracy: 0.8919
+[MAIN] Client 1, Round 3, Accuracy: 0.8991
+[MAIN] Client 2, Round 3, Accuracy: 0.8919
+[MAIN] Client 3, Round 3, Accuracy: 0.8932
+[MAIN] Client 5, Round 3, Accuracy: 0.9005
+[MAIN] Client 3, Round 4, Accuracy: 0.8932
+[MAIN] Client 2, Round 4, Accuracy: 0.8919
+[MAIN] Client 5, Round 4, Accuracy: 0.9005
+[MAIN] Client 4, Round 4, Accuracy: 0.8919
+[MAIN] Client 1, Round 4, Accuracy: 0.8991
+[MAIN] Client 2, Round 5, Accuracy: 0.8919
+[MAIN] Client 1, Round 5, Accuracy: 0.8991
+[MAIN] Client 4, Round 5, Accuracy: 0.8919
+[MAIN] Client 3, Round 5, Accuracy: 0.8932
+[MAIN] Client 5, Round 5, Accuracy: 0.9005
+[MAIN] Waiting for all clients to finish...
+[MAIN] Client 1 finished
+[MAIN] Client 2 finished
+[MAIN] Client 3 finished
+[MAIN] Client 4 finished
+[MAIN] Client 5 finished
+[MAIN] Federated learning completed. Results saved to fl/results/fl_metrics.csv
+[MAIN] Total rounds completed per client: {1: 5, 2: 5, 3: 5, 4: 5, 5: 5}
+[MAIN] Cleaning up processes...
+[MAIN] All processes cleaned up. Exiting.
+
+Process finished with exit code 0

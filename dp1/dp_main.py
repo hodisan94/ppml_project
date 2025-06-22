@@ -125,12 +125,14 @@ def save_results(results, csv_path, json_path, use_dp=True):
 
 def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default"):
     """Run a single experiment with given parameters"""
-    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, "results", experiment_name)
+
     server_process = None
     client_processes = []
     
     # Create results directory
-    results_dir = f"results/{experiment_name}"
+    # results_dir = f"results/{experiment_name}"
     os.makedirs(results_dir, exist_ok=True)
     
     csv_path = os.path.join(results_dir, "fl_metrics.csv")
@@ -143,7 +145,7 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
         # Start server
         print("[MAIN] Starting Flower server...")
         server_process = subprocess.Popen(
-            [PYTHON, "dp_server.py", str(use_dp).lower()],
+            [PYTHON, "-u", "dp_server.py", str(use_dp).lower()],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -165,10 +167,12 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
         for client_id in range(1, NUM_CLIENTS + 1):
             print(f"[MAIN] Starting client {client_id}...")
             try:
-                cmd = [PYTHON, "dp_client.py", str(client_id), str(use_dp).lower()]
+                # cmd = [PYTHON, "-u", "dp_client.py", str(client_id), str(use_dp).lower()] + ([str(noise_multiplier)] if use_dp else [])
+                # if use_dp:
+                #     cmd.append(str(noise_multiplier))
+                cmd = [PYTHON, "-u", "dp_client.py", str(client_id), str(use_dp).lower()]
                 if use_dp:
                     cmd.append(str(noise_multiplier))
-                
                 proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -207,7 +211,6 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
             try:
                 while not output_queue.empty():
                     item = output_queue.get_nowait()
-                    
                     if item[0] == 'accuracy':
                         _, client_id, accuracy = item
                         round_counts[client_id] += 1
@@ -216,6 +219,7 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
                         if use_dp:
                             # Include current privacy metrics
                             epsilon = privacy_metrics[client_id]['epsilon']
+
                             delta = privacy_metrics[client_id]['delta']
                             results.append([client_id, round_num, accuracy, epsilon, delta])
                         else:
@@ -225,8 +229,10 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
                     
                     elif item[0] == 'privacy' and use_dp:
                         _, client_id, epsilon, delta = item
-                        privacy_metrics[client_id]['epsilon'] = epsilon
-                        privacy_metrics[client_id]['delta'] = delta
+                        privacy_metrics[client_id]['epsilon'] = item[2]
+                        privacy_metrics[client_id]['delta'] = item[3]
+                        # privacy_metrics[client_id]['epsilon'] = epsilon
+                        # privacy_metrics[client_id]['delta'] = delta
 
                 time.sleep(1)
                 timeout_counter += 1
@@ -247,8 +253,25 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
                 print(f"[MAIN] Client {client_id} timed out, terminating...")
                 proc.terminate()
 
+        # Drain any remaining metrics from the queue before we save
+        while not output_queue.empty():
+            item = output_queue.get_nowait()
+            if item[0] == 'accuracy':
+                _, client_id, round_num, accuracy = item
+                if use_dp:
+                    eps = privacy_metrics[client_id]['epsilon']
+                    delt = privacy_metrics[client_id]['delta']
+                    results.append([client_id, round_num, accuracy, eps, delt])
+                else:
+                    results.append([client_id, round_num, accuracy])
+            elif item[0] == 'privacy' and use_dp:
+                _, client_id, epsilon, delta = item
+                privacy_metrics[client_id] = {'epsilon': epsilon, 'delta': delta}
+
         # Save results
         save_results(results, csv_path, json_path, use_dp)
+        # # Save results
+        # save_results(results, csv_path, json_path, use_dp)
         
         print(f"[MAIN] Experiment completed: {experiment_name}")
         print(f"[MAIN] Results saved to: {results_dir}")
@@ -353,7 +376,7 @@ def main():
         print(f"Failed experiments: {total_experiments - success_count}")
         
         if success_count > 0:
-            print(f"\nResults saved in: fl/results/")
+            print(f"\nResults saved in: results/")
             print("Files generated:")
             print("- fl_metrics.csv: Detailed metrics for each round")
             print("- experiment_summary.json: Experiment summary and final metrics")

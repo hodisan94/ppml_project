@@ -11,7 +11,7 @@ import logging
 from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
 import tempfile
-
+import numpy as np
 from tee_config import TEEConfig
 
 

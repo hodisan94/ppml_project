@@ -55,7 +55,18 @@ class DPFedAvgTEE(FedAvg):
         num_examples_list = []
         
         for _, fit_res in results:
-            weights_list.append([np.array(w) for w in fit_res.parameters])
+            # Extract tensors from Flower Parameters object
+            try:
+                if hasattr(fit_res.parameters, 'tensors'):
+                    # Newer Flower version - parameters is a Parameters object
+                    weights_list.append([np.array(tensor) for tensor in fit_res.parameters.tensors])
+                else:
+                    # Older Flower version - parameters is already a list
+                    weights_list.append([np.array(w) for w in fit_res.parameters])
+            except Exception as e:
+                print(f"[SERVER] Error extracting parameters: {e}")
+                print(f"[SERVER] Parameters type: {type(fit_res.parameters)}")
+                raise
             num_examples_list.append(fit_res.num_examples)
         
         # Perform secure aggregation if TEE is enabled

@@ -37,65 +37,8 @@ class DPFedAvgTEE(FedAvg):
         else:
             self.sgx_enclave = None
 
-    def aggregate_fit(
-        self,
-        server_round: int,
-        results: List[Tuple[ClientProxy, FitRes]],
-        failures: List[Tuple[ClientProxy, BaseException]],
-    ) -> Tuple[Optional[List[np.ndarray]], Dict[str, Scalar]]:
-        """Aggregate fit results with TEE-enhanced security"""
-        
-        print(f"[SERVER] aggregate_fit called for round {server_round} with {len(results)} results")
-        
-        if not results:
-            # Don't return None - delegate to parent or return last known parameters
-            print(f"[SERVER] No results for round {server_round}, delegating to parent aggregation")
-            return super().aggregate_fit(server_round, results, failures)
-        
-        # Extract weights and perform secure aggregation
-        weights_list = []
-        num_examples_list = []
-        
-        for _, fit_res in results:
-            # Extract tensors from Flower Parameters object using proper deserialization
-            try:
-                # Use Flower's official utility to convert Parameters to numpy arrays
-                weights = parameters_to_ndarrays(fit_res.parameters)
-                weights_list.append(weights)
-            except Exception as e:
-                print(f"[SERVER] Error extracting parameters: {e}")
-                print(f"[SERVER] Parameters type: {type(fit_res.parameters)}")
-                raise
-            num_examples_list.append(fit_res.num_examples)
-        
-        # Perform secure aggregation if TEE is enabled
-        if self.tee_config.use_tee and self.tee_config.enable_secure_aggregation:
-            print(f"[SERVER] Round {server_round} - Performing secure aggregation within SGX")
-            
-            # Aggregate each weight array separately
-            aggregated_weights = []
-            for i in range(len(weights_list[0])):  # For each weight matrix/vector
-                weight_arrays = [weights[i] for weights in weights_list]
-                aggregated_weight = secure_aggregate_weights(weight_arrays, self.tee_config)
-                aggregated_weights.append(aggregated_weight)
-        else:
-            # Standard weighted aggregation
-            print(f"[SERVER] Round {server_round} - Performing standard aggregation")
-            total_examples = sum(num_examples_list)
-            
-            aggregated_weights = []
-            for i in range(len(weights_list[0])):
-                weighted_weights = [
-                    weights[i] * num_examples / total_examples
-                    for weights, num_examples in zip(weights_list, num_examples_list)
-                ]
-                aggregated_weights.append(np.sum(weighted_weights, axis=0))
-        
-        metrics = {
-            "aggregation_method": "secure_tee" if self.tee_config.use_tee else "standard"
-        }
-        
-        return aggregated_weights, metrics
+    # Removed custom aggregate_fit - use Flower's default working implementation
+    # This was the root cause - original dp1 didn't override this and it worked!
 
     def aggregate_evaluate(
         self,

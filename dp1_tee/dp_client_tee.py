@@ -135,9 +135,9 @@ class DPPPMLClientTEE(flower.client.NumPyClient):
             weights_dict = {'coef_': parameters[0], 'intercept_': parameters[1]}
             model.set_weights(weights_dict)
             
-            # Train with DP (and TEE if enabled) - reduced epochs for performance
+            # Train with DP (and TEE if enabled) - restored original epochs
             batch_size = min(32, len(X_train))
-            epochs = 1  # Reduced from 5 to 1 for faster training
+            epochs = 5  # Restored to original working value
             model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=0)
             
             # Get privacy spent

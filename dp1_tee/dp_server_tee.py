@@ -32,8 +32,15 @@ class DPFedAvgTEE(FedAvg):
             if self.sgx_enclave.initialize():
                 print(f"[SERVER] SGX enclave initialized for secure aggregation")
             else:
-                print(f"[SERVER] SGX initialization failed, falling back to standard aggregation")
-                self.tee_config.use_tee = False
+                # Check if TEE was explicitly requested (strict mode)
+                tee_explicitly_requested = '--use-tee' in sys.argv
+                if tee_explicitly_requested:
+                    print(f"[SERVER] ERROR: SGX initialization failed and --use-tee was specified")
+                    print(f"[SERVER] Enclave setup is required but failed. Aborting.")
+                    sys.exit(1)
+                else:
+                    print(f"[SERVER] SGX initialization failed, falling back to standard aggregation")
+                    self.tee_config.use_tee = False
         else:
             self.sgx_enclave = None
 

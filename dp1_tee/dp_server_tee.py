@@ -45,6 +45,8 @@ class DPFedAvgTEE(FedAvg):
     ) -> Tuple[Optional[List[np.ndarray]], Dict[str, Scalar]]:
         """Aggregate fit results with TEE-enhanced security"""
         
+        print(f"[SERVER] aggregate_fit called for round {server_round} with {len(results)} results")
+        
         if not results:
             return None, {}
         
@@ -92,6 +94,8 @@ class DPFedAvgTEE(FedAvg):
         failures: List[Tuple[ClientProxy, BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         """Aggregate evaluation results and track privacy/TEE metrics"""
+        
+        print(f"[SERVER] aggregate_evaluate called for round {server_round} with {len(results)} results")
         
         # Standard aggregation
         aggregated_result = super().aggregate_evaluate(server_round, results, failures)
@@ -173,6 +177,19 @@ class DPFedAvgTEE(FedAvg):
         
         return loss, metrics
     
+    def configure_evaluate(
+        self, 
+        server_round: int, 
+        parameters: List[np.ndarray], 
+        client_manager
+    ):
+        """Configure the next round of evaluation"""
+        print(f"[SERVER] configure_evaluate called for round {server_round}")
+        
+        # Force evaluation on all available clients
+        config = {}
+        return [(client, config) for client in client_manager.all().values()]
+    
     def get_privacy_summary(self):
         """Get summary of privacy expenditure across all rounds"""
         if not self.privacy_metrics:
@@ -238,10 +255,18 @@ def main():
     try:
         logging.basicConfig(level=logging.DEBUG if tee_config.debug_mode else logging.INFO)
         
-        # Start server
+        # Start server with explicit evaluation configuration
+        config = flower.server.ServerConfig(
+            num_rounds=5,
+            round_timeout=60.0,  # 60 seconds timeout per round
+        )
+        
+        print(f"[SERVER] Server config: {config}")
+        print(f"[SERVER] Strategy evaluation settings: fraction_evaluate={strategy.fraction_evaluate}, min_evaluate_clients={strategy.min_evaluate_clients}")
+        
         flower.server.start_server(
             server_address="127.0.0.1:8086",
-            config=flower.server.ServerConfig(num_rounds=5),
+            config=config,
             strategy=strategy,
         )
         

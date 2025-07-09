@@ -39,8 +39,15 @@ sgx_enclave = None
 if tee_config.use_tee:
     sgx_enclave = SGXEnclave(tee_config)
     if not sgx_enclave.initialize():
-        print(f"[CLIENT {client_id}] SGX initialization failed, falling back to non-TEE mode")
-        tee_config.use_tee = False
+        # Check if TEE was explicitly requested (strict mode)
+        tee_explicitly_requested = '--use-tee' in sys.argv
+        if tee_explicitly_requested:
+            print(f"[CLIENT {client_id}] ERROR: SGX initialization failed and --use-tee was specified")
+            print(f"[CLIENT {client_id}] Enclave setup is required but failed. Aborting.")
+            sys.exit(1)
+        else:
+            print(f"[CLIENT {client_id}] SGX initialization failed, falling back to non-TEE mode")
+            tee_config.use_tee = False
     else:
         print(f"[CLIENT {client_id}] SGX enclave initialized successfully")
 

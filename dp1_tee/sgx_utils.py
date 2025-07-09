@@ -8,6 +8,7 @@ import json
 import hashlib
 import base64
 import logging
+import shutil
 from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
 import tempfile
@@ -177,20 +178,54 @@ sys.enable_extra_runtime_domain_names_conf = true
     def _initialize_gramine(self) -> bool:
         """Initialize Gramine-SGX enclave"""
         try:
-            # Check if Gramine is available
-            result = subprocess.run(['gramine-sgx', '--help'], 
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode != 0:
-                self.logger.error("[SGX] Gramine-SGX not found")
+            # Find gramine-sgx command with proper PATH
+            gramine_cmd = self._find_gramine_command()
+            if not gramine_cmd:
+                self.logger.error("[SGX] Gramine-SGX not found in PATH")
                 return False
             
-            self.logger.info("[SGX] Gramine-SGX available")
+            # Check if Gramine is available using --version (not --help which exits 2)
+            result = subprocess.run([gramine_cmd, '--version'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                self.logger.error(f"[SGX] Gramine-SGX check failed (exit {result.returncode})")
+                return False
+            
+            self.logger.info(f"[SGX] Gramine-SGX available: {result.stdout.strip()}")
+            self.gramine_path = gramine_cmd
             self.is_initialized = True
             return True
             
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             self.logger.error(f"[SGX] Gramine initialization failed: {e}")
             return False
+    
+    def _find_gramine_command(self) -> Optional[str]:
+        """Find gramine-sgx command in PATH"""
+        try:
+            # Try which command first
+            result = subprocess.run(['which', 'gramine-sgx'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                return result.stdout.strip()
+            
+            # Fallback: check common paths
+            common_paths = [
+                '/usr/local/bin/gramine-sgx',
+                '/usr/bin/gramine-sgx', 
+                '/home/azureuser/.local/bin/gramine-sgx',
+                shutil.which('gramine-sgx')
+            ]
+            
+            for path in common_paths:
+                if path and os.path.isfile(path) and os.access(path, os.X_OK):
+                    return path
+                    
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"[SGX] Error finding gramine command: {e}")
+            return None
     
     def run_in_enclave(self, script_path: str, args: List[str] = None) -> subprocess.Popen:
         """Run a Python script inside SGX enclave"""
@@ -201,8 +236,11 @@ sys.enable_extra_runtime_domain_names_conf = true
             return subprocess.Popen(cmd)
         
         try:
+            # Use the gramine path we found during initialization
+            gramine_cmd = getattr(self, 'gramine_path', 'gramine-sgx')
+            
             # Prepare Gramine command
-            cmd = ['gramine-sgx', 'python', script_path] + (args or [])
+            cmd = [gramine_cmd, 'python', script_path] + (args or [])
             
             # Set environment variables
             env = os.environ.copy()
@@ -224,7 +262,11 @@ sys.enable_extra_runtime_domain_names_conf = true
             
         except Exception as e:
             self.logger.error(f"[SGX] Failed to run in enclave: {e}")
-            # Fallback to normal execution
+            # In strict mode, don't fallback
+            if '--use-tee' in sys.argv:
+                self.logger.error("[SGX] TEE explicitly requested but enclave execution failed")
+                raise e
+            # Fallback to normal execution only if TEE not explicitly requested
             cmd = [sys.executable, script_path] + (args or [])
             return subprocess.Popen(cmd)
     

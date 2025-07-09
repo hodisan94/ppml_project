@@ -28,10 +28,11 @@ def monitor_client_output(client_id, process, output_queue, use_dp=True, use_tee
                 line = line.strip()
                 print(f"[CLIENT {client_id}] {line}")
 
-                # Extract accuracy
+                # Extract accuracy - fixed case sensitivity bug
                 if "accuracy:" in line.lower():
                     try:
-                        acc_str = line.split("accuracy:")[-1].strip()
+                        # Use case-insensitive parsing consistently
+                        acc_str = line.lower().split("accuracy:")[-1].strip()
                         # Remove any trailing TEE indicators
                         acc_str = acc_str.split("(")[0].strip()
                         accuracy = float(acc_str)
@@ -39,11 +40,11 @@ def monitor_client_output(client_id, process, output_queue, use_dp=True, use_tee
                     except (ValueError, IndexError):
                         continue
 
-                # Extract privacy metrics if DP is used
+                # Extract privacy metrics if DP is used - fixed case sensitivity bug
                 if use_dp and "privacy spent:" in line.lower():
                     try:
-                        # Parse: "Privacy spent: ε=0.1234, δ=1.00e-05"
-                        privacy_part = line.split("privacy spent:")[-1].strip()
+                        # Parse: "Privacy spent: ε=0.1234, δ=1.00e-05" - use case-insensitive parsing
+                        privacy_part = line.lower().split("privacy spent:")[-1].strip()
                         # Remove TEE indicators
                         privacy_part = privacy_part.split("(")[0].strip()
                         

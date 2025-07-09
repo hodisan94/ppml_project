@@ -101,18 +101,28 @@ class DPPPMLClientTEE(flower.client.NumPyClient):
             print(f"[CLIENT {client_id}] Enclave measurement: {self.enclave_measurement}")
         
     def get_parameters(self, config=None):
-        print(f"[CLIENT {client_id}] connected to server", flush=True)
+        print(f"[CLIENT {client_id}] get_parameters called (round {self.round_num})", flush=True)
         
         if tee_config.use_tee:
             print(f"[CLIENT {client_id}] Extracting parameters from SGX enclave", flush=True)
         
-        if use_dp:
-            weights = model.get_weights()
-            if weights is None:
-                return [np.zeros(X_train.shape[1]), np.array([0.0])]
-            return [weights['coef_'], weights['intercept_']]
-        else:
-            return [model.coef_.flatten(), model.intercept_]
+        try:
+            if use_dp:
+                print(f"[CLIENT {client_id}] Getting DP model weights...", flush=True)
+                weights = model.get_weights()
+                if weights is None:
+                    print(f"[CLIENT {client_id}] No weights found, returning zeros", flush=True)
+                    return [np.zeros(X_train.shape[1]), np.array([0.0])]
+                print(f"[CLIENT {client_id}] DP weights extracted successfully", flush=True)
+                return [weights['coef_'], weights['intercept_']]
+            else:
+                print(f"[CLIENT {client_id}] Getting sklearn model weights...", flush=True)
+                result = [model.coef_.flatten(), model.intercept_]
+                print(f"[CLIENT {client_id}] Sklearn weights extracted successfully", flush=True)
+                return result
+        except Exception as e:
+            print(f"[CLIENT {client_id}] ERROR in get_parameters: {e}", flush=True)
+            raise
 
     def fit(self, parameters, config=None):
         self.round_num += 1
@@ -146,7 +156,15 @@ class DPPPMLClientTEE(flower.client.NumPyClient):
             if tee_config.use_tee:
                 print(f"[CLIENT {client_id}] Round {self.round_num} - Training completed with TEE awareness", flush=True)
         
-        return self.get_parameters(), len(X_train), {}
+        print(f"[CLIENT {client_id}] Round {self.round_num} - Extracting parameters for return...", flush=True)
+        
+        try:
+            parameters_to_return = self.get_parameters()
+            print(f"[CLIENT {client_id}] Round {self.round_num} - Parameters extracted, returning to server...", flush=True)
+            return parameters_to_return, len(X_train), {}
+        except Exception as e:
+            print(f"[CLIENT {client_id}] Round {self.round_num} - ERROR extracting parameters: {e}", flush=True)
+            raise
 
     def evaluate(self, parameters, config=None):
         if tee_config.use_tee:

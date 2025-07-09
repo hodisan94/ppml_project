@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
 import tempfile
 import numpy as np
+
 from tee_config import TEEConfig
 
 
@@ -278,8 +279,6 @@ sys.enable_extra_runtime_domain_names_conf = true
 def secure_aggregate_weights(weights_list: List[np.ndarray], 
                            tee_config: TEEConfig) -> np.ndarray:
     """Secure aggregation of model weights using TEE"""
-    import numpy as np
-    
     if not tee_config.enable_secure_aggregation:
         # Standard aggregation
         return np.mean(weights_list, axis=0)

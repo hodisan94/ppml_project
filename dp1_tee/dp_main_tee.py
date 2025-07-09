@@ -71,6 +71,28 @@ def monitor_client_output(client_id, process, output_queue, use_dp=True, use_tee
         print(f"[MAIN] Error monitoring client {client_id}: {e}")
 
 
+def monitor_server_output(process, output_queue):
+    """Monitor server output and extract federated learning events"""
+    try:
+        for line in iter(process.stdout.readline, ''):
+            if line:
+                line = line.strip()
+                print(f"[SERVER] {line}")
+                
+                # Extract server events that indicate FL progress
+                if "aggregate_fit called" in line.lower():
+                    output_queue.put(('server_event', 'aggregate_fit', line))
+                elif "aggregate_evaluate called" in line.lower():
+                    output_queue.put(('server_event', 'aggregate_evaluate', line))
+                elif "configure_evaluate called" in line.lower():
+                    output_queue.put(('server_event', 'configure_evaluate', line))
+                elif "round" in line.lower() and ("privacy budget" in line.lower() or "avg accuracy" in line.lower()):
+                    output_queue.put(('server_event', 'round_summary', line))
+
+    except Exception as e:
+        print(f"[MAIN] Error monitoring server: {e}")
+
+
 def cleanup_processes(server_process, client_processes):
     """Clean up all processes"""
     print("[MAIN] Cleaning up processes...")
@@ -180,21 +202,31 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
             server_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
+
+        # Start server monitoring thread
+        output_queue = Queue()
+        server_monitor_thread = threading.Thread(
+            target=monitor_server_output,
+            args=(server_process, output_queue)
+        )
+        server_monitor_thread.daemon = True
+        server_monitor_thread.start()
+        print("[MAIN] Server monitoring started")
 
         # Give server time to start
         time.sleep(5)
 
         # Check if server started successfully
         if server_process.poll() is not None:
-            stdout, _ = server_process.communicate()
-            print(f"[MAIN] Server failed to start. Output: {stdout}")
+            print(f"[MAIN] Server failed to start!")
             return False
 
         # Start clients
-        output_queue = Queue()
-        monitor_threads = []
+        monitor_threads = [server_monitor_thread]  # Include server monitoring thread
 
         for client_id in range(1, NUM_CLIENTS + 1):
             print(f"[MAIN] Starting client {client_id}...")
@@ -271,6 +303,10 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
                         if status in ['initialized', 'protected']:
                             tee_status[client_id] = True
                             print(f"[MAIN] Client {client_id} TEE status: {status}")
+                    
+                    elif item[0] == 'server_event':
+                        _, event_type, message = item
+                        print(f"[MAIN] Server event ({event_type}): {message}")
 
                 time.sleep(1)
                 timeout_counter += 1
@@ -317,6 +353,10 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
                     _, client_id, status = item
                     if status in ['initialized', 'protected']:
                         tee_status[client_id] = True
+                        
+                elif item[0] == 'server_event':
+                    _, event_type, message = item
+                    print(f"[MAIN] Final server event ({event_type}): {message}")
             except:
                 break
 

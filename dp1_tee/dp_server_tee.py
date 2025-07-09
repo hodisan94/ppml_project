@@ -9,7 +9,7 @@ import sys
 import logging
 import numpy as np
 from flwr.server.client_proxy import ClientProxy
-from flwr.common import EvaluateRes, FitRes, Scalar
+from flwr.common import EvaluateRes, FitRes, Scalar, parameters_to_ndarrays
 from tee_config import TEEConfig, SGX_TEE_CONFIG
 from sgx_utils import SGXEnclave, secure_aggregate_weights
 
@@ -55,14 +55,11 @@ class DPFedAvgTEE(FedAvg):
         num_examples_list = []
         
         for _, fit_res in results:
-            # Extract tensors from Flower Parameters object
+            # Extract tensors from Flower Parameters object using proper deserialization
             try:
-                if hasattr(fit_res.parameters, 'tensors'):
-                    # Newer Flower version - parameters is a Parameters object
-                    weights_list.append([np.array(tensor) for tensor in fit_res.parameters.tensors])
-                else:
-                    # Older Flower version - parameters is already a list
-                    weights_list.append([np.array(w) for w in fit_res.parameters])
+                # Use Flower's official utility to convert Parameters to numpy arrays
+                weights = parameters_to_ndarrays(fit_res.parameters)
+                weights_list.append(weights)
             except Exception as e:
                 print(f"[SERVER] Error extracting parameters: {e}")
                 print(f"[SERVER] Parameters type: {type(fit_res.parameters)}")

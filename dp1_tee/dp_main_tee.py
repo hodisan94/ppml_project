@@ -217,8 +217,8 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
         server_monitor_thread.start()
         print("[MAIN] Server monitoring started")
 
-        # Give server time to start
-        time.sleep(5)
+        # Give server time to start (reduced for performance)
+        time.sleep(3)
 
         # Check if server started successfully
         if server_process.poll() is not None:
@@ -256,7 +256,8 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
                 monitor_thread.start()
                 monitor_threads.append(monitor_thread)
 
-                time.sleep(2)
+                # Reduced sleep for faster startup
+                time.sleep(0.5)
 
             except Exception as e:
                 print(f"[MAIN] Error starting client {client_id}: {e}")
@@ -308,7 +309,7 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
                         _, event_type, message = item
                         print(f"[MAIN] Server event ({event_type}): {message}")
 
-                time.sleep(1)
+                time.sleep(0.1)  # Reduced for better responsiveness
                 timeout_counter += 1
 
             except KeyboardInterrupt:

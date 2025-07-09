@@ -1,0 +1,27 @@
+# Base requirements from parent directory
+-r ../requirements.txt
+
+# Cryptography for secure communication
+cryptography>=3.4.8
+pycryptodome>=3.15.0
+
+# Additional monitoring and logging
+psutil>=5.8.0
+structlog>=21.1.0
+
+# For manifest generation and file operations
+jinja2>=3.0.0
+pathlib2>=2.3.5
+
+# SGX-specific packages (will be installed via apt, not pip)
+# intel-sgx-driver - install via apt
+# intel-sgx-sdk - install via apt
+# gramine - install via apt
+
+# Network and communication
+requests>=2.25.0
+urllib3>=1.26.0
+
+# Utilities for TEE operations
+pyyaml>=5.4.0
+toml>=0.10.0 

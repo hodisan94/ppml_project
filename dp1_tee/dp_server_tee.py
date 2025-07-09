@@ -48,7 +48,9 @@ class DPFedAvgTEE(FedAvg):
         print(f"[SERVER] aggregate_fit called for round {server_round} with {len(results)} results")
         
         if not results:
-            return None, {}
+            # Don't return None - delegate to parent or return last known parameters
+            print(f"[SERVER] No results for round {server_round}, delegating to parent aggregation")
+            return super().aggregate_fit(server_round, results, failures)
         
         # Extract weights and perform secure aggregation
         weights_list = []
@@ -109,7 +111,7 @@ class DPFedAvgTEE(FedAvg):
         aggregated_result = super().aggregate_evaluate(server_round, results, failures)
         
         if aggregated_result is None:
-            return None
+            return None, {}
         
         loss, metrics = aggregated_result
         
@@ -185,18 +187,7 @@ class DPFedAvgTEE(FedAvg):
         
         return loss, metrics
     
-    def configure_evaluate(
-        self, 
-        server_round: int, 
-        parameters: List[np.ndarray], 
-        client_manager
-    ):
-        """Configure the next round of evaluation"""
-        print(f"[SERVER] configure_evaluate called for round {server_round}")
-        
-        # Force evaluation on all available clients
-        config = {}
-        return [(client, config) for client in client_manager.all().values()]
+    # Removed custom configure_evaluate - use Flower's default to properly pass parameters
     
     def get_privacy_summary(self):
         """Get summary of privacy expenditure across all rounds"""

@@ -212,7 +212,7 @@ sys.enable_extra_runtime_domain_names_conf = true
             self.logger.error(f"[SGX] Error finding gramine command: {e}")
             return None
     
-    def run_in_enclave(self, script_path: str, args: Optional[List[str]] = None) -> subprocess.Popen:
+    def run_in_enclave(self, script_path: str, args: Optional[List[str]] = None) -> Optional[subprocess.Popen]:
         """Run a Python script inside SGX enclave"""
         if not self.tee_config.use_tee or not self.is_initialized:
             # Run normally without enclave
@@ -225,6 +225,10 @@ sys.enable_extra_runtime_domain_names_conf = true
             if not self.manifest_path or not os.path.exists(self.manifest_path):
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
+            
+            if not self.manifest_path:
+                raise RuntimeError("Manifest path is not set")
+                
             manifest_dir = os.path.dirname(self.manifest_path)
             manifest_file = os.path.basename(self.manifest_path)
             manifest_sgx = f"{manifest_file}.sgx"
@@ -233,8 +237,10 @@ sys.enable_extra_runtime_domain_names_conf = true
             if not os.path.exists(manifest_sgx_path):
                 self.logger.info(f"[SGX] Building .manifest.sgx file via gramine-sgx --build in {manifest_dir}")
                 subprocess.run([gramine_cmd, "--build", manifest_file], check=True, cwd=manifest_dir)
-            # Prepare Gramine command: gramine-sgx <manifest.sgx> <script> <args>
-            cmd = [gramine_cmd, manifest_sgx, script_path] + (args or [])
+            # Prepare Gramine command: gramine-sgx <app_name> <script> <args>
+            # The app name is derived from the manifest name (e.g., python.manifest -> python)
+            app_name = manifest_file.replace('.manifest', '')
+            cmd = [gramine_cmd, app_name, script_path] + (args or [])
             env = os.environ.copy()
             if self.tee_config.debug_mode:
                 env['GRAMINE_LOG_LEVEL'] = 'debug'

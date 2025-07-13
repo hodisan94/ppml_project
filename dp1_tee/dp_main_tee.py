@@ -110,7 +110,7 @@ def cleanup_processes(server_process, client_processes):
                 print(f"[MAIN] Error terminating client {client_id}: {e}")
 
     # Terminate server process
-    if server_process.poll() is None:
+    if server_process and server_process.poll() is None:
         try:
             server_process.terminate()
             server_process.wait(timeout=5)
@@ -210,6 +210,17 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
             if server_enclave.initialize():
                 print("[MAIN] Starting server inside SGX enclave...")
                 server_process = server_enclave.run_in_enclave("dp_server_tee.py", server_args)
+                if server_process is None:
+                    print("[MAIN] Failed to start server in enclave, falling back to normal mode")
+                    server_cmd = [PYTHON, "-u", "dp_server_tee.py"] + server_args
+                    server_process = subprocess.Popen(
+                        server_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True
+                    )
             else:
                 print("[MAIN] SGX enclave initialization failed for server, falling back to normal mode")
                 server_cmd = [PYTHON, "-u", "dp_server_tee.py"] + server_args
@@ -273,6 +284,17 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
                     if enclave.initialize():
                         print(f"[MAIN] Starting client {client_id} inside SGX enclave...")
                         proc = enclave.run_in_enclave("dp_client_tee.py", args)
+                        if proc is None:
+                            print(f"[MAIN] Failed to start client {client_id} in enclave, falling back to normal mode")
+                            cmd = [PYTHON, "-u", "dp_client_tee.py"] + args
+                            proc = subprocess.Popen(
+                                cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                text=True,
+                                bufsize=1,
+                                universal_newlines=True
+                            )
                     else:
                         print(f"[MAIN] SGX enclave initialization failed for client {client_id}, falling back to normal mode")
                         cmd = [PYTHON, "-u", "dp_client_tee.py"] + args

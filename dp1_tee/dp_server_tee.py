@@ -1,5 +1,5 @@
 """
-Enhanced DP Server with TEE Support
+Enhanced DP Server with TEE Support - Fixed Certificate Handling
 """
 from __future__ import annotations
 import flwr as flower
@@ -17,6 +17,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.common import EvaluateRes, FitRes, Scalar, parameters_to_ndarrays
 from tee_config import TEEConfig, SGX_TEE_CONFIG
 from sgx_utils import SGXEnclave, secure_aggregate_weights
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -26,14 +27,14 @@ NUM_CLIENTS = 5
 
 class DPFedAvgTEE(FedAvg):
     """Custom FedAvg strategy with TEE support that tracks privacy metrics"""
-    
+
     def __init__(self, tee_config: TEEConfig = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.privacy_metrics = {}
         self.tee_metrics = {}
         self.round_num = 0
         self.tee_config = tee_config or TEEConfig()
-        
+
         # Initialize SGX enclave for server-side operations
         if self.tee_config.use_tee:
             self.sgx_enclave = SGXEnclave(self.tee_config)
@@ -53,84 +54,84 @@ class DPFedAvgTEE(FedAvg):
             self.sgx_enclave = None
 
     def aggregate_fit(
-        self,
-        server_round: int,
-        results: List[Tuple[ClientProxy, FitRes]],
-        failures: List[Tuple[ClientProxy, BaseException]],
+            self,
+            server_round: int,
+            results: List[Tuple[ClientProxy, FitRes]],
+            failures: List[Tuple[ClientProxy, BaseException]],
     ) -> Tuple[Optional[flower.common.Parameters], Dict[str, Scalar]]:
         """Aggregate fit results with optional secure aggregation"""
-        
+
         print(f"[SERVER] aggregate_fit called for round {server_round} with {len(results)} results")
-        
+
         if not results:
             return None, {}
-        
+
         # Convert results to numpy arrays for aggregation
         weights_results = [
             (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
             for _, fit_res in results
         ]
-        
+
         # Perform secure aggregation if TEE is enabled
         if self.tee_config.use_tee and self.tee_config.enable_secure_aggregation:
             print("[SERVER] Performing secure aggregation within SGX enclave")
-            
+
             # Extract just the weights for secure aggregation
             weights_list = [weights for weights, _ in weights_results]
-            
+
             # Perform secure aggregation
             aggregated_weights = secure_aggregate_weights(weights_list, self.tee_config)
-            
+
             # Convert back to parameters
             aggregated_parameters = flower.common.ndarrays_to_parameters(aggregated_weights)
-            
+
             print("[SERVER] Secure aggregation completed")
         else:
             # Use standard FedAvg aggregation
             print("[SERVER] Performing standard aggregation")
             aggregated_result = super().aggregate_fit(server_round, results, failures)
-            
+
             if aggregated_result is None:
                 return None, {}
-            
+
             aggregated_parameters, _ = aggregated_result
-        
+
         # Collect metrics from clients
         metrics = {}
-        
+
         return aggregated_parameters, metrics
 
     def aggregate_evaluate(
-        self,
-        server_round: int,
-        results: List[Tuple[ClientProxy, EvaluateRes]],
-        failures: List[Tuple[ClientProxy, BaseException]],
+            self,
+            server_round: int,
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[ClientProxy, BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         """Aggregate evaluation results and track privacy/TEE metrics"""
-        
+
         print(f"[SERVER] aggregate_evaluate called for round {server_round} with {len(results)} results")
-        
+
         # Standard aggregation
         aggregated_result = super().aggregate_evaluate(server_round, results, failures)
-        
+
         if aggregated_result is None:
             return None, {}
-        
+
         loss, metrics = aggregated_result
-        
+
         # Track privacy metrics
         max_epsilon = 0.0  # Use max instead of sum for proper FL privacy accounting
         total_delta = 0.0
         accuracy_sum = 0.0
         num_clients = len(results)
-        
+
         # Track TEE metrics
         tee_enabled_clients = 0
         enclave_measurements = []
-        
+
         for _, evaluate_res in results:
             client_metrics = evaluate_res.metrics
-            
+
             # Privacy metrics - use max epsilon for proper FL accounting
             if "epsilon" in client_metrics:
                 max_epsilon = max(max_epsilon, client_metrics["epsilon"])
@@ -138,32 +139,32 @@ class DPFedAvgTEE(FedAvg):
                 total_delta = max(total_delta, client_metrics["delta"])
             if "accuracy" in client_metrics:
                 accuracy_sum += client_metrics["accuracy"]
-            
+
             # TEE metrics
             if "tee_enabled" in client_metrics and client_metrics["tee_enabled"]:
                 tee_enabled_clients += 1
             if "enclave_measurement" in client_metrics:
                 enclave_measurements.append(client_metrics["enclave_measurement"])
-        
+
         # Add privacy metrics to aggregated results
         if max_epsilon > 0:
             metrics["max_epsilon"] = max_epsilon
             metrics["max_delta"] = total_delta
             metrics["avg_accuracy"] = accuracy_sum / num_clients if num_clients > 0 else 0.0
-            
+
             privacy_info = f"Privacy Budget: ε={max_epsilon:.4f}, δ={total_delta:.2e}, Avg Accuracy: {metrics['avg_accuracy']:.4f}"
         else:
             privacy_info = f"Avg Accuracy: {accuracy_sum / num_clients:.4f}" if num_clients > 0 else "No metrics"
-        
+
         # Add TEE metrics
         metrics["tee_enabled_clients"] = tee_enabled_clients
         metrics["total_clients"] = num_clients
-        
+
         tee_info = ""
         if tee_enabled_clients > 0:
             metrics["tee_coverage"] = tee_enabled_clients / num_clients
             tee_info = f", TEE Coverage: {tee_enabled_clients}/{num_clients} clients"
-            
+
             # Verify enclave measurements for consistency
             if len(set(enclave_measurements)) == 1:
                 metrics["enclave_consistency"] = True
@@ -171,35 +172,33 @@ class DPFedAvgTEE(FedAvg):
             else:
                 metrics["enclave_consistency"] = False
                 tee_info += " (WARNING: inconsistent enclaves)"
-        
+
         print(f"[SERVER] Round {server_round} - {privacy_info}{tee_info}")
-        
+
         # Store metrics for final report
         self.privacy_metrics[server_round] = {
             "epsilon": max_epsilon,
             "delta": total_delta,
             "accuracy": metrics.get("avg_accuracy", 0.0)
         }
-        
+
         self.tee_metrics[server_round] = {
             "tee_enabled_clients": tee_enabled_clients,
             "total_clients": num_clients,
             "tee_coverage": tee_enabled_clients / num_clients if num_clients > 0 else 0.0,
             "enclave_consistency": metrics.get("enclave_consistency", False)
         }
-        
+
         return loss, metrics
-    
-    # Removed custom configure_evaluate - use Flower's default to properly pass parameters
-    
+
     def get_privacy_summary(self):
         """Get summary of privacy expenditure across all rounds"""
         if not self.privacy_metrics:
             return "No privacy metrics collected"
-        
+
         final_round = max(self.privacy_metrics.keys())
         final_metrics = self.privacy_metrics[final_round]
-        
+
         summary = f"""
 Privacy Budget Summary:
 - Total ε (epsilon): {final_metrics['epsilon']:.4f}
@@ -207,7 +206,7 @@ Privacy Budget Summary:
 - Final Accuracy: {final_metrics['accuracy']:.4f}
 - Total Rounds: {final_round}
 """
-        
+
         # Add TEE summary if applicable
         if self.tee_metrics:
             final_tee = self.tee_metrics[final_round]
@@ -217,7 +216,7 @@ TEE Summary:
 - Enclave Consistency: {'✓' if final_tee['enclave_consistency'] else '✗'}
 - Secure Aggregation: {'✓' if self.tee_config.enable_secure_aggregation else '✗'}
 """
-        
+
         return summary
 
     def cleanup(self):
@@ -228,34 +227,49 @@ TEE Summary:
 
 def main():
     # 1) Parse args
-    use_dp   = sys.argv[1].lower() == "true"
-    use_tee  = sys.argv[2].lower() == "true"
-    # If the user didn’t pass an experiment name, default it:
+    use_dp = sys.argv[1].lower() == "true"
+    use_tee = sys.argv[2].lower() == "true"
     experiment_name = sys.argv[3] if len(sys.argv) > 3 else "default"
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 2) Generate + load certificates based on experiment_name
+    # 2) Generate + load certificates
     cert_dir = Path("certificates")
     cert_dir.mkdir(exist_ok=True)
 
-    cert_file = cert_dir / f"{experiment_name}.pem"
-    key_file  = cert_dir / f"{experiment_name}.key"
+    # Generate a common server certificate that clients expect
+    server_cert_file = cert_dir / "server.pem"
+    server_key_file = cert_dir / "server.key"
 
-    if not cert_file.exists() or not key_file.exists():
-        print(f"[SERVER] Generating new SSL cert/key for experiment '{experiment_name}'")
+    # Also generate experiment-specific certificates
+    exp_cert_file = cert_dir / f"{experiment_name}.pem"
+    exp_key_file = cert_dir / f"{experiment_name}.key"
+
+    # Generate server certificate if it doesn't exist
+    if not server_cert_file.exists() or not server_key_file.exists():
+        print(f"[SERVER] Generating new SSL server cert/key")
         subprocess.run([
             "openssl", "req", "-newkey", "rsa:2048", "-nodes",
-            "-keyout", str(key_file),
-            "-x509", "-days", "365", "-out", str(cert_file),
-            "-subj", f"/CN={experiment_name}"
+            "-keyout", str(server_key_file),
+            "-x509", "-days", "365", "-out", str(server_cert_file),
+            "-subj", "/CN=localhost"
         ], check=True)
 
-    certificate_chain = cert_file.read_bytes()
-    private_key       = key_file.read_bytes()
+    # Copy to experiment-specific files for compatibility
+    if not exp_cert_file.exists() or not exp_key_file.exists():
+        import shutil
+        shutil.copy(server_cert_file, exp_cert_file)
+        shutil.copy(server_key_file, exp_key_file)
+        print(f"[SERVER] Copied server certificates for experiment '{experiment_name}'")
 
-    # Flower expects (certificate_chain, private_key, root_certificate)
-    certificates = (certificate_chain, private_key, certificate_chain)
-    print(f"[SERVER] SSL certificates loaded for '{experiment_name}'")
+    # Use the server certificate
+    certificate_chain = server_cert_file.read_bytes()
+    private_key = server_key_file.read_bytes()
+
+    certificates = (
+        certificate_chain,  # CA certificate (self-signed == server cert)
+        certificate_chain,  # server certificate
+        private_key  # server private key
+    )
+    print(f"[SERVER] SSL certificates loaded")
 
     # Configure TEE
     if use_tee:
@@ -265,7 +279,7 @@ def main():
     else:
         tee_config = TEEConfig(use_tee=False)
         print(f"[SERVER] TEE disabled")
-    
+
     # Define strategy with TEE support
     strategy = DPFedAvgTEE(
         tee_config=tee_config,
@@ -282,33 +296,34 @@ def main():
 
     try:
         logging.basicConfig(level=logging.DEBUG if tee_config.debug_mode else logging.INFO)
-        
+
         # Start server with explicit evaluation configuration
         config = flower.server.ServerConfig(
             num_rounds=5,
             round_timeout=60.0,  # 60 seconds timeout per round
         )
-        
+
         print(f"[SERVER] Server config: {config}")
-        print(f"[SERVER] Strategy evaluation settings: fraction_evaluate={strategy.fraction_evaluate}, min_evaluate_clients={strategy.min_evaluate_clients}")
-        
+        print(
+            f"[SERVER] Strategy evaluation settings: fraction_evaluate={strategy.fraction_evaluate}, min_evaluate_clients={strategy.min_evaluate_clients}")
+
         # Use certificates generated above, or disable TLS if TEE is not enabled
         if not use_tee:
             certificates = None
             print("[SERVER] TLS disabled (TEE not enabled), using insecure connection")
-        
+
         flower.server.start_server(
             server_address="127.0.0.1:8086",
             config=config,
             strategy=strategy,
             certificates=certificates,
         )
-        
+
         print("[SERVER] Training completed successfully!")
-        
+
         # Print privacy and TEE summary
         print(strategy.get_privacy_summary())
-            
+
     except Exception as e:
         print(f"[SERVER] Error: {e}")
     finally:
@@ -318,4 +333,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

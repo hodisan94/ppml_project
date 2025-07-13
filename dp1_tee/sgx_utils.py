@@ -232,12 +232,8 @@ sys.enable_extra_runtime_domain_names_conf = true
             # Ensure .manifest.sgx is built
             manifest_sgx = f"{self.manifest_path}.sgx"
             if not os.path.exists(manifest_sgx):
-                self.logger.info("[SGX] Building .manifest.sgx file via gramine-manifest")
-                try:
-                    subprocess.run(["gramine-manifest", "-D", self.manifest_path], check=True)
-                except FileNotFoundError:
-                    # Fall back to gramine-sgx --build if gramine-manifest is not available
-                    subprocess.run([gramine_cmd, "--build", self.manifest_path], check=True)
+                self.logger.info("[SGX] Building .manifest.sgx file via gramine-sgx --build")
+                subprocess.run([gramine_cmd, "--build", self.manifest_path], check=True)
 
             # Prepare Gramine command: gramine-sgx <manifest.sgx> <script> <args>
             cmd = [gramine_cmd, manifest_sgx, script_path] + (args or [])

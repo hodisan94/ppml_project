@@ -4,7 +4,7 @@ Enhanced DP Utils with TEE Support
 import numpy as np
 import tensorflow as tf
 from tensorflow_privacy.privacy.optimizers import dp_optimizer_keras
-from tensorflow_privacy.privacy.analysis import dp_accounting
+from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy_lib
 
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -127,95 +127,84 @@ class DPLogisticRegressionTEE:
     def _compute_privacy_spent(self, dataset_size, batch_size):
         """Compute privacy spent using TF Privacy analysis with TEE protection"""
         if self.use_dp and self.training_steps > 0:
-            steps = self.training_steps
-            epochs = steps * batch_size / dataset_size
-            
-            # Use new dp_accounting API for more accurate privacy accounting
-            accountant = dp_accounting.rdp.RdpAccountant()
-            
-            # Compute sampling probability
-            sampling_probability = batch_size / dataset_size
-            
-            # Add noise for the number of steps
-            event = dp_accounting.SelfComposedDpEvent(
-                dp_accounting.GaussianDpEvent(self.dp_config.noise_multiplier),
-                int(epochs * dataset_size / batch_size)
+            epochs = self.training_steps * batch_size / dataset_size
+            epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
+                n=dataset_size,
+                batch_size=batch_size,
+                noise_multiplier=self.dp_config.noise_multiplier,
+                epochs=epochs,
+                delta=self.dp_config.target_delta
             )
-            
-            accountant.compose(event)
-            
-            # Get epsilon for the target delta
-            epsilon = accountant.get_epsilon(self.dp_config.target_delta)
-            
             self.privacy_spent['epsilon'] = epsilon
             self.privacy_spent['delta'] = self.dp_config.target_delta
-            
+
             if self.tee_config.use_tee:
                 logging.info(f"[TEE] Privacy budget ε={epsilon:.4f} computed securely")
-    
+
     def predict(self, X):
         """Make predictions with TEE protection"""
         if self.model is None:
             raise ValueError("Model not trained yet")
         X = np.array(X, dtype=np.float32)
-        
+
         if self.tee_config.use_tee:
             logging.debug("[TEE] Performing secure prediction")
-        
+
         return (self.model.predict(X, verbose=0) > 0.5).astype(int).flatten()
-    
+
     def predict_proba(self, X):
         """Predict probabilities with TEE protection"""
         if self.model is None:
             raise ValueError("Model not trained yet")
         X = np.array(X, dtype=np.float32)
-        
+
         if self.tee_config.use_tee:
             logging.debug("[TEE] Performing secure probability prediction")
-        
+
         probs = self.model.predict(X, verbose=0)
         return np.column_stack([1 - probs.flatten(), probs.flatten()])
-    
+
     def get_weights(self):
         """Get model weights with TEE protection"""
         if self.model is None:
             return None
-        
+
         weights = self.model.get_weights()
         weights_dict = {'coef_': weights[0].flatten(), 'intercept_': weights[1]}
-        
+
         if self.tee_config.use_tee and self.tee_config.secure_communication:
             logging.debug("[TEE] Weights extracted securely from enclave")
-        
+
         return weights_dict
-    
+
     def set_weights(self, weights_dict):
         """Set model weights with TEE protection"""
         if self.model is None:
             return
-        
+
         if self.tee_config.use_tee and self.tee_config.secure_communication:
             logging.debug("[TEE] Setting weights securely within enclave")
-        
+
         if 'coef_' in weights_dict and 'intercept_' in weights_dict:
             coef = weights_dict['coef_'].reshape(-1, 1)
             intercept = weights_dict['intercept_']
             self.model.set_weights([coef, intercept])
-    
+
     def get_privacy_spent(self):
         """Get current privacy expenditure"""
         return self.privacy_spent.copy()
-    
+
     def get_enclave_measurement(self):
         """Get SGX enclave measurement for attestation"""
         if self.sgx_enclave:
             return self.sgx_enclave.get_enclave_measurement()
         return None
-    
+
     def cleanup(self):
         """Cleanup TEE resources"""
         if self.sgx_enclave:
             self.sgx_enclave.cleanup()
+
 
 
 def load_client_data(client_id):
@@ -246,10 +235,10 @@ def get_model(use_dp=True, dp_config=None, tee_config=None):
     else:
         from sklearn.linear_model import LogisticRegression
         model = LogisticRegression(solver="lbfgs", max_iter=1000)
-        
+
         if tee_config and tee_config.use_tee:
             logging.info("[TEE] Standard model initialized with TEE awareness")
-        
+
         return model
 
 
@@ -257,25 +246,18 @@ def compute_privacy_budget(dataset_sizes, batch_size, noise_multiplier, epochs, 
     """
     Compute privacy budget for federated learning setup
     """
-    max_epsilon = 0  # Use max instead of sum for proper FL privacy accounting
-    
+    max_epsilon = 0.0  # Use max instead of sum for proper FL privacy accounting
+
     for size in dataset_sizes:
-        # Use new dp_accounting API
-        accountant = dp_accounting.rdp.RdpAccountant()
-        
-        # Create noise event for the number of training steps
-        steps = int(epochs * size / batch_size)
-        event = dp_accounting.SelfComposedDpEvent(
-            dp_accounting.GaussianDpEvent(noise_multiplier),
-            steps
+        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
+            n=size,
+            batch_size=batch_size,
+            noise_multiplier=noise_multiplier,
+            epochs=epochs,
+            delta=delta,
         )
-        
-        accountant.compose(event)
-        epsilon = accountant.get_epsilon(delta)
-        
-        # In FL, privacy budget is the maximum across clients, not sum
         max_epsilon = max(max_epsilon, epsilon)
-    
+
     return max_epsilon, delta
 
 
@@ -284,25 +266,19 @@ def analyze_privacy_utility_tradeoff(noise_multipliers, dataset_size, batch_size
     Analyze the privacy-utility tradeoff for different noise levels
     """
     results = []
-    
+
     for noise_mult in noise_multipliers:
-        # Use new dp_accounting API
-        accountant = dp_accounting.rdp.RdpAccountant()
-        
-        # Create noise event for the number of training steps
-        steps = int(epochs * dataset_size / batch_size)
-        event = dp_accounting.SelfComposedDpEvent(
-            dp_accounting.GaussianDpEvent(noise_mult),
-            steps
+        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
+            n=dataset_size,
+            batch_size=batch_size,
+            noise_multiplier=noise_mult,
+            epochs=epochs,
+            delta=delta,
         )
-        
-        accountant.compose(event)
-        epsilon = accountant.get_epsilon(delta)
-        
         results.append({
             'noise_multiplier': noise_mult,
             'epsilon': epsilon,
             'delta': delta
         })
-    
-    return results 
+
+    return results

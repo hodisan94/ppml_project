@@ -12,7 +12,7 @@ import os
 import warnings
 
 # Suppress various warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 logging.getLogger('grpc').setLevel(logging.ERROR)

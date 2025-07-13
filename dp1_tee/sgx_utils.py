@@ -229,8 +229,18 @@ sys.enable_extra_runtime_domain_names_conf = true
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
 
-            # Prepare Gramine command: gramine-sgx <manifest> <script> <args>
-            cmd = [gramine_cmd, self.manifest_path, script_path] + (args or [])
+            # Ensure .manifest.sgx is built
+            manifest_sgx = f"{self.manifest_path}.sgx"
+            if not os.path.exists(manifest_sgx):
+                self.logger.info("[SGX] Building .manifest.sgx file via gramine-manifest")
+                try:
+                    subprocess.run(["gramine-manifest", "-D", self.manifest_path], check=True)
+                except FileNotFoundError:
+                    # Fall back to gramine-sgx --build if gramine-manifest is not available
+                    subprocess.run([gramine_cmd, "--build", self.manifest_path], check=True)
+
+            # Prepare Gramine command: gramine-sgx <manifest.sgx> <script> <args>
+            cmd = [gramine_cmd, manifest_sgx, script_path] + (args or [])
             
             # Set environment variables
             env = os.environ.copy()

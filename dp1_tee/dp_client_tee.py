@@ -11,9 +11,17 @@ from tee_config import TEEConfig, SGX_TEE_CONFIG
 from sgx_utils import SGXEnclave
 import tensorflow as tf
 import logging
+import os
+import warnings
 
-# Suppress TensorFlow warnings
+# Suppress TensorFlow and other warnings
 tf.get_logger().setLevel('ERROR')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TensorFlow C++ warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+# Suppress gRPC warnings
+logging.getLogger('grpc').setLevel(logging.ERROR)
 
 # Parse command line arguments
 if len(sys.argv) < 2:
@@ -224,9 +232,28 @@ tee_description = f"{'TEE-enabled ' if tee_config.use_tee else ''}{'DP' if use_d
 print(f"[CLIENT {client_id}] Starting {tee_description} client...")
 
 try:
+    # Use SSL if TEE is enabled
+    if tee_config.use_tee:
+        try:
+            from pathlib import Path
+            cert_file = Path("certificates/server.pem")
+            if cert_file.exists():
+                with open(cert_file, 'rb') as f:
+                    root_certificates = f.read()
+                print(f"[CLIENT {client_id}] Using SSL connection")
+            else:
+                root_certificates = None
+                print(f"[CLIENT {client_id}] SSL certificate not found, using insecure connection (will auto-generate on server if needed)")
+        except Exception as e:
+            print(f"[CLIENT {client_id}] SSL setup failed: {e}, using insecure connection")
+            root_certificates = None
+    else:
+        root_certificates = None
+    
     flower.client.start_numpy_client(
         server_address="127.0.0.1:8086", 
-        client=DPPPMLClientTEE()
+        client=DPPPMLClientTEE(),
+        root_certificates=root_certificates
     )
 finally:
     # Cleanup TEE resources

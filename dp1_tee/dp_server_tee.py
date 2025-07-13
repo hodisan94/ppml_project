@@ -8,11 +8,19 @@ from typing import List, Tuple, Dict, Optional, Union
 import sys
 import logging
 import numpy as np
+import os
+import warnings
+from pathlib import Path
+import subprocess, ssl
+# Suppress various warnings
 from flwr.server.client_proxy import ClientProxy
 from flwr.common import EvaluateRes, FitRes, Scalar, parameters_to_ndarrays
 from tee_config import TEEConfig, SGX_TEE_CONFIG
 from sgx_utils import SGXEnclave, secure_aggregate_weights
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+logging.getLogger('grpc').setLevel(logging.NOTSET)
 NUM_CLIENTS = 5
 
 
@@ -44,8 +52,53 @@ class DPFedAvgTEE(FedAvg):
         else:
             self.sgx_enclave = None
 
-    # Removed custom aggregate_fit - use Flower's default working implementation
-    # This was the root cause - original dp1 didn't override this and it worked!
+    def aggregate_fit(
+        self,
+        server_round: int,
+        results: List[Tuple[ClientProxy, FitRes]],
+        failures: List[Tuple[ClientProxy, BaseException]],
+    ) -> Tuple[Optional[flower.common.Parameters], Dict[str, Scalar]]:
+        """Aggregate fit results with optional secure aggregation"""
+        
+        print(f"[SERVER] aggregate_fit called for round {server_round} with {len(results)} results")
+        
+        if not results:
+            return None, {}
+        
+        # Convert results to numpy arrays for aggregation
+        weights_results = [
+            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+            for _, fit_res in results
+        ]
+        
+        # Perform secure aggregation if TEE is enabled
+        if self.tee_config.use_tee and self.tee_config.enable_secure_aggregation:
+            print("[SERVER] Performing secure aggregation within SGX enclave")
+            
+            # Extract just the weights for secure aggregation
+            weights_list = [weights for weights, _ in weights_results]
+            
+            # Perform secure aggregation
+            aggregated_weights = secure_aggregate_weights(weights_list, self.tee_config)
+            
+            # Convert back to parameters
+            aggregated_parameters = flower.common.ndarrays_to_parameters(aggregated_weights)
+            
+            print("[SERVER] Secure aggregation completed")
+        else:
+            # Use standard FedAvg aggregation
+            print("[SERVER] Performing standard aggregation")
+            aggregated_result = super().aggregate_fit(server_round, results, failures)
+            
+            if aggregated_result is None:
+                return None, {}
+            
+            aggregated_parameters, _ = aggregated_result
+        
+        # Collect metrics from clients
+        metrics = {}
+        
+        return aggregated_parameters, metrics
 
     def aggregate_evaluate(
         self,
@@ -66,7 +119,7 @@ class DPFedAvgTEE(FedAvg):
         loss, metrics = aggregated_result
         
         # Track privacy metrics
-        total_epsilon = 0.0
+        max_epsilon = 0.0  # Use max instead of sum for proper FL privacy accounting
         total_delta = 0.0
         accuracy_sum = 0.0
         num_clients = len(results)
@@ -78,9 +131,9 @@ class DPFedAvgTEE(FedAvg):
         for _, evaluate_res in results:
             client_metrics = evaluate_res.metrics
             
-            # Privacy metrics
+            # Privacy metrics - use max epsilon for proper FL accounting
             if "epsilon" in client_metrics:
-                total_epsilon += client_metrics["epsilon"]
+                max_epsilon = max(max_epsilon, client_metrics["epsilon"])
             if "delta" in client_metrics:
                 total_delta = max(total_delta, client_metrics["delta"])
             if "accuracy" in client_metrics:
@@ -93,12 +146,12 @@ class DPFedAvgTEE(FedAvg):
                 enclave_measurements.append(client_metrics["enclave_measurement"])
         
         # Add privacy metrics to aggregated results
-        if total_epsilon > 0:
-            metrics["total_epsilon"] = total_epsilon
+        if max_epsilon > 0:
+            metrics["max_epsilon"] = max_epsilon
             metrics["max_delta"] = total_delta
             metrics["avg_accuracy"] = accuracy_sum / num_clients if num_clients > 0 else 0.0
             
-            privacy_info = f"Privacy Budget: ε={total_epsilon:.4f}, δ={total_delta:.2e}, Avg Accuracy: {metrics['avg_accuracy']:.4f}"
+            privacy_info = f"Privacy Budget: ε={max_epsilon:.4f}, δ={total_delta:.2e}, Avg Accuracy: {metrics['avg_accuracy']:.4f}"
         else:
             privacy_info = f"Avg Accuracy: {accuracy_sum / num_clients:.4f}" if num_clients > 0 else "No metrics"
         
@@ -123,7 +176,7 @@ class DPFedAvgTEE(FedAvg):
         
         # Store metrics for final report
         self.privacy_metrics[server_round] = {
-            "epsilon": total_epsilon,
+            "epsilon": max_epsilon,
             "delta": total_delta,
             "accuracy": metrics.get("avg_accuracy", 0.0)
         }
@@ -174,10 +227,36 @@ TEE Summary:
 
 
 def main():
-    # Parse command line arguments for DP and TEE configuration
-    use_dp = sys.argv[1].lower() == 'true' if len(sys.argv) > 1 else True
-    use_tee = sys.argv[2].lower() == 'true' if len(sys.argv) > 2 else False
-    
+    # 1) Parse args
+    use_dp   = sys.argv[1].lower() == "true"
+    use_tee  = sys.argv[2].lower() == "true"
+    # If the user didn’t pass an experiment name, default it:
+    experiment_name = sys.argv[3] if len(sys.argv) > 3 else "default"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 2) Generate + load certificates based on experiment_name
+    cert_dir = Path("certificates")
+    cert_dir.mkdir(exist_ok=True)
+
+    cert_file = cert_dir / f"{experiment_name}.pem"
+    key_file  = cert_dir / f"{experiment_name}.key"
+
+    if not cert_file.exists() or not key_file.exists():
+        print(f"[SERVER] Generating new SSL cert/key for experiment '{experiment_name}'")
+        subprocess.run([
+            "openssl", "req", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key_file),
+            "-x509", "-days", "365", "-out", str(cert_file),
+            "-subj", f"/CN={experiment_name}"
+        ], check=True)
+
+    certificate_chain = cert_file.read_bytes()
+    private_key       = key_file.read_bytes()
+
+    # Flower expects (certificate, private_key, root_certificate)
+    certificates = (certificate_chain, private_key, certificate_chain)
+    print(f"[SERVER] SSL certificates loaded for '{experiment_name}'")
+
     # Configure TEE
     if use_tee:
         tee_config = SGX_TEE_CONFIG
@@ -213,10 +292,43 @@ def main():
         print(f"[SERVER] Server config: {config}")
         print(f"[SERVER] Strategy evaluation settings: fraction_evaluate={strategy.fraction_evaluate}, min_evaluate_clients={strategy.min_evaluate_clients}")
         
+        # Generate SSL certificates if TEE is enabled for secure communication
+        certificates = None
+        if use_tee:
+            try:
+                cert_dir = Path("certificates")
+                cert_dir.mkdir(exist_ok=True)
+                
+                # Generate self-signed certificate for localhost
+                cert_file = cert_dir / "server.pem"
+                key_file = cert_dir / "server.key"
+                
+                if not cert_file.exists() or not key_file.exists():
+                    print("[SERVER] SSL certificate or key not found, generating new ones...")
+                    subprocess.run([
+                        "openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key_file),
+                        "-x509", "-days", "365", "-out", str(cert_file), "-subj", "/CN=localhost"
+                    ], check=True)
+                
+                # Read certificate and key
+                with open(cert_file, 'rb') as f:
+                    certificate_chain = f.read()
+                with open(key_file, 'rb') as f:
+                    private_key = f.read()
+                
+                # Flower expects (certificate_chain, private_key, root_certificate)
+                certificates = (certificate_chain, private_key, certificate_chain)
+                print("[SERVER] SSL certificates loaded")
+                
+            except Exception as e:
+                print(f"[SERVER] SSL setup failed: {e}, using insecure connection")
+                certificates = None
+        
         flower.server.start_server(
             server_address="127.0.0.1:8086",
             config=config,
             strategy=strategy,
+            certificates=certificates,
         )
         
         print("[SERVER] Training completed successfully!")

@@ -64,57 +64,36 @@ class SGXEnclave:
     def _check_sgx_support(self) -> bool:
         """Check if SGX is supported and available"""
         try:
-            # Check for SGX device files
-            sgx_devices = ["/dev/sgx_enclave", "/dev/sgx/enclave"]
-            if not any(os.path.exists(device) for device in sgx_devices):
-                self.logger.warning("[SGX] SGX device files not found")
-                return False
-            
-            # Check SGX capabilities (if cpuid is available)
-            try:
-                result = subprocess.run(['cpuid', '-l', '0x7', '-s', '0x0'], 
-                                      capture_output=True, text=True, timeout=5)
-                if result.returncode == 0 and 'SGX' in result.stdout:
-                    self.logger.info("[SGX] SGX support detected via cpuid")
-                    return True
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-            
-            # Fallback: check dmesg for SGX
-            try:
-                result = subprocess.run(['dmesg'], capture_output=True, text=True, timeout=10)
-                if result.returncode == 0 and 'sgx' in result.stdout.lower():
-                    self.logger.info("[SGX] SGX support detected via dmesg")
-                    return True
-            except subprocess.TimeoutExpired:
-                pass
-            
-            # Check if strict mode is enabled (fail when SGX not available)
-            if self.tee_config.strict_mode:
-                self.logger.error("[SGX] SGX hardware not found and strict mode enabled")
-                return False
-            
-            self.logger.warning("[SGX] SGX support unclear, proceeding with simulation mode")
-            self.logger.warning("[SGX] WARNING: This provides NO real security guarantees!")
-            return True  # Allow to proceed for testing/simulation only
-            
+            # Check for SGX device files (update to match your system)
+            sgx_devices = ["/dev/sgx_enclave", "/dev/sgx_provision", "/dev/sgx/enclave", "/dev/sgx/provision"]
+            found = False
+            for device in sgx_devices:
+                if os.path.exists(device):
+                    self.logger.info(f"[SGX] Found SGX device: {device}")
+                    found = True
+            if not found:
+                self.logger.warning("[SGX] SGX device files not found. Will proceed in simulation mode.")
+                if self.tee_config.strict_mode:
+                    self.logger.error("[SGX] SGX hardware not found and strict mode enabled")
+                    return False
+                self.logger.warning("[SGX] WARNING: This provides NO real security guarantees!")
+                return True  # Allow to proceed for testing/simulation only
+            return True
         except Exception as e:
             self.logger.error(f"[SGX] Error checking SGX support: {e}")
             return False
     
     def _generate_manifest(self) -> bool:
-        """Generate Gramine manifest file"""
+        """Generate Gramine manifest file in the project directory"""
         try:
             manifest_content = self._get_manifest_template()
-            
-            # Create temporary manifest file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.manifest', delete=False) as f:
+            # Always write manifest to project directory
+            manifest_path = os.path.join(os.getcwd(), "python.manifest")
+            with open(manifest_path, 'w') as f:
                 f.write(manifest_content)
-                self.manifest_path = f.name
-            
+            self.manifest_path = manifest_path
             self.logger.info(f"[SGX] Generated manifest: {self.manifest_path}")
             return True
-            
         except Exception as e:
             self.logger.error(f"[SGX] Failed to generate manifest: {e}")
             return False

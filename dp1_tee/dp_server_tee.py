@@ -281,7 +281,7 @@ def main():
                 key_file = cert_dir / "server.key"
                 
                 if not cert_file.exists() or not key_file.exists():
-                    print("[SERVER] Generating SSL certificates...")
+                    print("[SERVER] SSL certificate or key not found, generating new ones...")
                     import subprocess
                     subprocess.run([
                         "openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key_file),

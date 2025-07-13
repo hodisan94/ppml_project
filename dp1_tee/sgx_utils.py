@@ -253,6 +253,9 @@ sys.enable_extra_runtime_domain_names_conf = true
                 self.logger.info(f"[SGX] Signing key generated: {signing_key_path}")
 
             # 3) Sign the manifest to create .sig file
+            # NOTE: If gramine-sgx-sign fails with "No module named 'pkg_resources'", install:
+            # sudo apt-get install python3-setuptools
+            # or: pip3 install setuptools
             manifest_base, _ = os.path.splitext(self.manifest_path)  # drops ".manifest"
             sig_file = manifest_base + ".sig"
             
@@ -262,7 +265,10 @@ sys.enable_extra_runtime_domain_names_conf = true
                            "--key", signing_key_path, "--output", sgx_manifest_path]
                 sign_result = subprocess.run(sign_cmd, cwd=manifest_dir, capture_output=True, text=True)
                 if sign_result.returncode != 0:
-                    raise RuntimeError(f"Manifest signing failed: {sign_result.stderr}")
+                    error_msg = f"Manifest signing failed: {sign_result.stderr}"
+                    if "pkg_resources" in sign_result.stderr:
+                        error_msg += "\nHint: Install setuptools: sudo apt-get install python3-setuptools"
+                    raise RuntimeError(error_msg)
                 self.logger.info(f"[SGX] Manifest signed successfully: {sig_file}")
 
             # 4) **Run** using the base name so Gramine finds python.manifest.sgx and python.sig
@@ -277,10 +283,17 @@ sys.enable_extra_runtime_domain_names_conf = true
             self.logger.error(f"[SGX] Failed to run in enclave: {e}")
             if self.tee_config.strict_mode:
                 raise
-            # Fall back to normal Python execution
+            # Fall back to normal Python execution with proper stdout handling
             fallback_cmd = [sys.executable, script_path] + (args or [])
             self.logger.info(f"[SGX] Falling back to host execution: {' '.join(fallback_cmd)}")
-            return subprocess.Popen(fallback_cmd)
+            return subprocess.Popen(
+                fallback_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
 
     def get_enclave_measurement(self) -> Optional[str]:
         """Get enclave measurement for attestation"""

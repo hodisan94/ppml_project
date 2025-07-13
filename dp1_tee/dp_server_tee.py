@@ -253,7 +253,7 @@ def main():
     certificate_chain = cert_file.read_bytes()
     private_key       = key_file.read_bytes()
 
-    # Flower expects (certificate, private_key, root_certificate)
+    # Flower expects (certificate_chain, private_key, root_certificate)
     certificates = (certificate_chain, private_key, certificate_chain)
     print(f"[SERVER] SSL certificates loaded for '{experiment_name}'")
 
@@ -292,37 +292,10 @@ def main():
         print(f"[SERVER] Server config: {config}")
         print(f"[SERVER] Strategy evaluation settings: fraction_evaluate={strategy.fraction_evaluate}, min_evaluate_clients={strategy.min_evaluate_clients}")
         
-        # Generate SSL certificates if TEE is enabled for secure communication
-        certificates = None
-        if use_tee:
-            try:
-                cert_dir = Path("certificates")
-                cert_dir.mkdir(exist_ok=True)
-                
-                # Generate self-signed certificate for localhost
-                cert_file = cert_dir / "server.pem"
-                key_file = cert_dir / "server.key"
-                
-                if not cert_file.exists() or not key_file.exists():
-                    print("[SERVER] SSL certificate or key not found, generating new ones...")
-                    subprocess.run([
-                        "openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key_file),
-                        "-x509", "-days", "365", "-out", str(cert_file), "-subj", "/CN=localhost"
-                    ], check=True)
-                
-                # Read certificate and key
-                with open(cert_file, 'rb') as f:
-                    certificate_chain = f.read()
-                with open(key_file, 'rb') as f:
-                    private_key = f.read()
-                
-                # Flower expects (certificate_chain, private_key, root_certificate)
-                certificates = (certificate_chain, private_key, certificate_chain)
-                print("[SERVER] SSL certificates loaded")
-                
-            except Exception as e:
-                print(f"[SERVER] SSL setup failed: {e}, using insecure connection")
-                certificates = None
+        # Use certificates generated above, or disable TLS if TEE is not enabled
+        if not use_tee:
+            certificates = None
+            print("[SERVER] TLS disabled (TEE not enabled), using insecure connection")
         
         flower.server.start_server(
             server_address="127.0.0.1:8086",

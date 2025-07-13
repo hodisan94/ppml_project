@@ -85,6 +85,8 @@ class DPPPMLClient(flower.client.NumPyClient):
             # Get privacy spent
             privacy_spent = model.get_privacy_spent()
             print(f"[CLIENT {client_id}] Round {self.round_num} - Privacy spent: ε={privacy_spent['epsilon']:.4f}, δ={privacy_spent['delta']:.2e}", flush=True)
+
+            model.model.save(f"results/fl_dp_model_client_{client_id}.h5")
             
         else:
             # Standard sklearn training

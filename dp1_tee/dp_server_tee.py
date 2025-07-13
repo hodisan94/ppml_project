@@ -294,7 +294,8 @@ def main():
                 with open(key_file, 'rb') as f:
                     private_key = f.read()
                 
-                certificates = (certificate_chain, private_key)
+                # Flower expects (private_key, certificate_chain, root_certificate)
+                certificates = (private_key, certificate_chain, None)
                 print("[SERVER] SSL certificates loaded")
                 
             except Exception as e:

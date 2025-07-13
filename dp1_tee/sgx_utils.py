@@ -235,8 +235,15 @@ sys.enable_extra_runtime_domain_names_conf = true
             manifest_sgx_path = os.path.join(manifest_dir, manifest_sgx)
             # Build .manifest.sgx in the manifest directory if missing
             if not os.path.exists(manifest_sgx_path):
-                self.logger.info(f"[SGX] Building .manifest.sgx file via gramine-sgx --build in {manifest_dir}")
-                subprocess.run([gramine_cmd, "--build", manifest_file], check=True, cwd=manifest_dir)
+                self.logger.info(f"[SGX] Building .manifest.sgx file in {manifest_dir}")
+                try:
+                    # Try the new Gramine 1.8+ approach first
+                    subprocess.run(["gramine-manifest", manifest_file, manifest_file], check=True, cwd=manifest_dir)
+                    subprocess.run(["gramine-sgx-sign", "--manifest", manifest_file, "--output", manifest_sgx], check=True, cwd=manifest_dir)
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    # Fallback to older gramine-sgx --build approach
+                    self.logger.info(f"[SGX] Fallback: trying gramine-sgx --build")
+                    subprocess.run([gramine_cmd, "--build", manifest_file], check=True, cwd=manifest_dir)
             # Prepare Gramine command: gramine-sgx <app_name> <script> <args>
             # The app name is derived from the manifest name (e.g., python.manifest -> python)
             app_name = manifest_file.replace('.manifest', '')

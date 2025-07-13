@@ -198,15 +198,40 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
 
         # Start server
         print("[MAIN] Starting Flower server...")
-        server_cmd = [PYTHON, "-u", "dp_server_tee.py", str(use_dp).lower(), str(use_tee).lower()]
-        server_process = subprocess.Popen(
-            server_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
+        server_args = [str(use_dp).lower(), str(use_tee).lower()]
+        
+        # Run server inside SGX enclave if TEE is enabled
+        if use_tee:
+            from sgx_utils import SGXEnclave
+            from tee_config import SGX_TEE_CONFIG
+            
+            # Create enclave instance for the server
+            server_enclave = SGXEnclave(SGX_TEE_CONFIG)
+            if server_enclave.initialize():
+                print("[MAIN] Starting server inside SGX enclave...")
+                server_process = server_enclave.run_in_enclave("dp_server_tee.py", server_args)
+            else:
+                print("[MAIN] SGX enclave initialization failed for server, falling back to normal mode")
+                server_cmd = [PYTHON, "-u", "dp_server_tee.py"] + server_args
+                server_process = subprocess.Popen(
+                    server_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+        else:
+            # Run normally without enclave
+            server_cmd = [PYTHON, "-u", "dp_server_tee.py"] + server_args
+            server_process = subprocess.Popen(
+                server_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
 
         # Start server monitoring thread
         output_queue = Queue()
@@ -232,20 +257,45 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, use_tee=False, experiment_
         for client_id in range(1, NUM_CLIENTS + 1):
             print(f"[MAIN] Starting client {client_id}...")
             try:
-                cmd = [PYTHON, "-u", "dp_client_tee.py", str(client_id), str(use_dp).lower()]
+                args = [str(client_id), str(use_dp).lower()]
                 if use_dp:
-                    cmd.append(str(noise_multiplier))
+                    args.append(str(noise_multiplier))
                 if use_tee:
-                    cmd.append(str(use_tee).lower())
+                    args.append(str(use_tee).lower())
 
-                proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
+                # Run client inside SGX enclave if TEE is enabled
+                if use_tee:
+                    from sgx_utils import SGXEnclave
+                    from tee_config import SGX_TEE_CONFIG
+                    
+                    # Create enclave instance for this client
+                    enclave = SGXEnclave(SGX_TEE_CONFIG)
+                    if enclave.initialize():
+                        print(f"[MAIN] Starting client {client_id} inside SGX enclave...")
+                        proc = enclave.run_in_enclave("dp_client_tee.py", args)
+                    else:
+                        print(f"[MAIN] SGX enclave initialization failed for client {client_id}, falling back to normal mode")
+                        cmd = [PYTHON, "-u", "dp_client_tee.py"] + args
+                        proc = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            bufsize=1,
+                            universal_newlines=True
+                        )
+                else:
+                    # Run normally without enclave
+                    cmd = [PYTHON, "-u", "dp_client_tee.py"] + args
+                    proc = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True
+                    )
+                
                 client_processes.append((client_id, proc))
 
                 # Start monitoring thread

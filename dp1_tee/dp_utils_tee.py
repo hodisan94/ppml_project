@@ -4,7 +4,7 @@ Enhanced DP Utils with TEE Support
 import numpy as np
 import tensorflow as tf
 from tensorflow_privacy.privacy.optimizers import dp_optimizer_keras
-from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy_lib
+from tensorflow_privacy.privacy.analysis import dp_accounting
 
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -128,13 +128,25 @@ class DPLogisticRegressionTEE:
         """Compute privacy spent using TF Privacy analysis with TEE protection"""
         if self.use_dp and self.training_steps > 0:
             steps = self.training_steps
-            epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
-                n=dataset_size,
-                batch_size=batch_size,
-                noise_multiplier=self.dp_config.noise_multiplier,
-                epochs=steps * batch_size / dataset_size,
-                delta=self.dp_config.target_delta
+            epochs = steps * batch_size / dataset_size
+            
+            # Use new dp_accounting API for more accurate privacy accounting
+            accountant = dp_accounting.rdp.RdpAccountant()
+            
+            # Compute sampling probability
+            sampling_probability = batch_size / dataset_size
+            
+            # Add noise for the number of steps
+            event = dp_accounting.SelfComposedDpEvent(
+                dp_accounting.GaussianDpEvent(self.dp_config.noise_multiplier),
+                int(epochs * dataset_size / batch_size)
             )
+            
+            accountant.compose(event)
+            
+            # Get epsilon for the target delta
+            epsilon = accountant.get_epsilon(self.dp_config.target_delta)
+            
             self.privacy_spent['epsilon'] = epsilon
             self.privacy_spent['delta'] = self.dp_config.target_delta
             
@@ -245,18 +257,26 @@ def compute_privacy_budget(dataset_sizes, batch_size, noise_multiplier, epochs, 
     """
     Compute privacy budget for federated learning setup
     """
-    total_epsilon = 0
-    for size in dataset_sizes:
-        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
-            n=size,
-            batch_size=batch_size,
-            noise_multiplier=noise_multiplier,
-            epochs=epochs,
-            delta=delta
-        )
-        total_epsilon += epsilon
+    max_epsilon = 0  # Use max instead of sum for proper FL privacy accounting
     
-    return total_epsilon, delta
+    for size in dataset_sizes:
+        # Use new dp_accounting API
+        accountant = dp_accounting.rdp.RdpAccountant()
+        
+        # Create noise event for the number of training steps
+        steps = int(epochs * size / batch_size)
+        event = dp_accounting.SelfComposedDpEvent(
+            dp_accounting.GaussianDpEvent(noise_multiplier),
+            steps
+        )
+        
+        accountant.compose(event)
+        epsilon = accountant.get_epsilon(delta)
+        
+        # In FL, privacy budget is the maximum across clients, not sum
+        max_epsilon = max(max_epsilon, epsilon)
+    
+    return max_epsilon, delta
 
 
 def analyze_privacy_utility_tradeoff(noise_multipliers, dataset_size, batch_size, epochs, delta=1e-5):
@@ -266,13 +286,18 @@ def analyze_privacy_utility_tradeoff(noise_multipliers, dataset_size, batch_size
     results = []
     
     for noise_mult in noise_multipliers:
-        epsilon, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
-            n=dataset_size,
-            batch_size=batch_size,
-            noise_multiplier=noise_mult,
-            epochs=epochs,
-            delta=delta
+        # Use new dp_accounting API
+        accountant = dp_accounting.rdp.RdpAccountant()
+        
+        # Create noise event for the number of training steps
+        steps = int(epochs * dataset_size / batch_size)
+        event = dp_accounting.SelfComposedDpEvent(
+            dp_accounting.GaussianDpEvent(noise_mult),
+            steps
         )
+        
+        accountant.compose(event)
+        epsilon = accountant.get_epsilon(delta)
         
         results.append({
             'noise_multiplier': noise_mult,

@@ -27,6 +27,7 @@ class TEEConfig:
     enable_secure_aggregation: bool = True
     secure_communication: bool = True
     protected_memory: bool = True
+    strict_mode: bool = False  # Fail hard when SGX hardware not available
     
     # Performance settings
     async_mode: bool = False
@@ -59,6 +60,7 @@ class TEEConfig:
             enable_secure_aggregation=os.getenv("ENABLE_SECURE_AGGREGATION", "true").lower() == "true",
             secure_communication=os.getenv("SECURE_COMMUNICATION", "true").lower() == "true",
             protected_memory=os.getenv("PROTECTED_MEMORY", "true").lower() == "true",
+            strict_mode=os.getenv("STRICT_MODE", "false").lower() == "true",
             debug_mode=os.getenv("DEBUG_MODE", "false").lower() == "true",
             enclave_debug=os.getenv("ENCLAVE_DEBUG", "false").lower() == "true",
             sgx_debug=os.getenv("SGX_DEBUG", "false").lower() == "true"
@@ -77,6 +79,7 @@ class TEEConfig:
             "enable_secure_aggregation": self.enable_secure_aggregation,
             "secure_communication": self.secure_communication,
             "protected_memory": self.protected_memory,
+            "strict_mode": self.strict_mode,
             "debug_mode": self.debug_mode,
             "enclave_debug": self.enclave_debug,
             "sgx_debug": self.sgx_debug

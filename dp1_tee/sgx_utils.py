@@ -89,8 +89,14 @@ class SGXEnclave:
             except subprocess.TimeoutExpired:
                 pass
             
-            self.logger.warning("[SGX] SGX support unclear, proceeding with caution")
-            return True  # Allow to proceed for testing
+            # Check if strict mode is enabled (fail when SGX not available)
+            if self.tee_config.strict_mode:
+                self.logger.error("[SGX] SGX hardware not found and strict mode enabled")
+                return False
+            
+            self.logger.warning("[SGX] SGX support unclear, proceeding with simulation mode")
+            self.logger.warning("[SGX] WARNING: This provides NO real security guarantees!")
+            return True  # Allow to proceed for testing/simulation only
             
         except Exception as e:
             self.logger.error(f"[SGX] Error checking SGX support: {e}")
@@ -227,7 +233,7 @@ sys.enable_extra_runtime_domain_names_conf = true
             self.logger.error(f"[SGX] Error finding gramine command: {e}")
             return None
     
-    def run_in_enclave(self, script_path: str, args: List[str] = None) -> subprocess.Popen:
+    def run_in_enclave(self, script_path: str, args: Optional[List[str]] = None) -> subprocess.Popen:
         """Run a Python script inside SGX enclave"""
         if not self.tee_config.use_tee or not self.is_initialized:
             # Run normally without enclave

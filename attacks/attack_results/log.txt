@@ -1,0 +1,153 @@
+(.venv) PS C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks> python mia_attack.py
+[DEBUG] Loading member and non-member data...
+[DEBUG] Loaded X_member shape: (5550, 20)
+[DEBUG] Loaded X_nonmember shape: (5550, 20)
+
+[DEBUG] Loading model: ../dp1/results/fl_dp_model_client_1.h5
+2025-07-13 19:56:25.403623: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE SSE2 SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+[DEBUG] Running MIA on model: fl_dp_model_client_1.h5
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Member scores: mean=0.1162, std=0.0604
+[DEBUG] Non-member scores: mean=0.1192, std=0.0631
+[DEBUG] Sweeping thresholds to find best attack accuracy...
+[DEBUG] Best threshold found: 0.02 with accuracy: 0.5003
+
+[MIA] Results for fl_dp_model_client_1.h5
+  • Best threshold : 0.02
+  • Accuracy        : 0.5003
+  • AUC             : 0.4887
+  • Precision       : 0.5001
+  • Recall          : 0.9995
+  • F1-Score        : 0.6667
+[DEBUG] Saved ROC curve to attack_results/roc_fl_dp_model_client_1.h5.png
+
+[DEBUG] Loading model: ../dp1/results/fl_dp_model_client_2.h5
+[DEBUG] Running MIA on model: fl_dp_model_client_2.h5
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Member scores: mean=0.0881, std=0.0687
+[DEBUG] Non-member scores: mean=0.0874, std=0.0694
+[DEBUG] Sweeping thresholds to find best attack accuracy...
+[DEBUG] Best threshold found: 0.07 with accuracy: 0.5071
+
+[MIA] Results for fl_dp_model_client_2.h5
+  • Best threshold : 0.07
+  • Accuracy        : 0.5071
+  • AUC             : 0.5055
+  • Precision       : 0.5075
+  • Recall          : 0.4823
+  • F1-Score        : 0.4946
+[DEBUG] Saved ROC curve to attack_results/roc_fl_dp_model_client_2.h5.png
+
+[DEBUG] Loading model: ../dp1/results/fl_dp_model_client_3.h5
+[DEBUG] Running MIA on model: fl_dp_model_client_3.h5
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Member scores: mean=0.1165, std=0.0555
+[DEBUG] Non-member scores: mean=0.1165, std=0.0558
+[DEBUG] Sweeping thresholds to find best attack accuracy...
+[DEBUG] Best threshold found: 0.14 with accuracy: 0.5032
+
+[MIA] Results for fl_dp_model_client_3.h5
+  • Best threshold : 0.14
+  • Accuracy        : 0.5032
+  • AUC             : 0.4995
+  • Precision       : 0.5054
+  • Recall          : 0.3054
+  • F1-Score        : 0.3807
+[DEBUG] Saved ROC curve to attack_results/roc_fl_dp_model_client_3.h5.png
+
+[DEBUG] Loading model: ../dp1/results/fl_dp_model_client_4.h5
+[DEBUG] Running MIA on model: fl_dp_model_client_4.h5
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Member scores: mean=0.0877, std=0.0546
+[DEBUG] Non-member scores: mean=0.0887, std=0.0556
+[DEBUG] Sweeping thresholds to find best attack accuracy...
+[DEBUG] Best threshold found: 0.03 with accuracy: 0.5010
+
+[MIA] Results for fl_dp_model_client_4.h5
+  • Best threshold : 0.03
+  • Accuracy        : 0.5010
+  • AUC             : 0.4964
+  • Precision       : 0.5006
+  • Recall          : 0.9013
+  • F1-Score        : 0.6436
+[DEBUG] Saved ROC curve to attack_results/roc_fl_dp_model_client_4.h5.png
+
+[DEBUG] Loading model: ../dp1/results/fl_dp_model_client_5.h5
+[DEBUG] Running MIA on model: fl_dp_model_client_5.h5
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 2ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Getting confidence scores using framework: keras
+[DEBUG] Predicting probabilities for 5550 samples...
+174/174 [==============================] - 0s 1ms/step
+[DEBUG] Predicted shape: (5550, 1)
+[DEBUG] Member scores: mean=0.0890, std=0.0530
+[DEBUG] Non-member scores: mean=0.0912, std=0.0545
+[DEBUG] Sweeping thresholds to find best attack accuracy...
+[DEBUG] Best threshold found: 0.02 with accuracy: 0.5002
+
+[MIA] Results for fl_dp_model_client_5.h5
+  • Best threshold : 0.02
+  • Accuracy        : 0.5002
+  • AUC             : 0.4890
+  • Precision       : 0.5001
+  • Recall          : 0.9912
+  • F1-Score        : 0.6648
+[DEBUG] Saved ROC curve to attack_results/roc_fl_dp_model_client_5.h5.png
+
+[DEBUG] Loading model: ../dp1/results/global_model_sklearn.pkl
+C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\.venv\lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Tryin
+g to unpickle estimator LogisticRegression from version 1.7.0 when using version 1.6.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+[DEBUG] Running MIA on model: global_model_sklearn.pkl
+[DEBUG] Evaluating MIA...
+[DEBUG] Getting confidence scores using framework: sklearn
+[DEBUG] Predicting probabilities for 5550 samples (sklearn)...
+Traceback (most recent call last):
+  File "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\mia_attack.py", line 124, in <module>
+    run_and_report(global_model_path, X_member, X_nonmember, framework="sklearn")
+  File "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\mia_attack.py", line 84, in run_and_report
+    result = evaluate_mia(model, X_member, X_nonmember, framework)
+  File "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\mia_attack.py", line 33, in evaluate_mia
+    member_scores = get_confidence_scores(model, X_member, framework)
+  File "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\mia_attack.py", line 21, in get_confidence_scores
+    probs = model.predict_proba(X)
+  File "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\.venv\lib\site-packages\sklearn\linear_model\_logistic.py", line 1425, in predict_proba
+    and (self.classes_.size <= 2 or self.solver == "liblinear")
+AttributeError: 'list' object has no attribute 'size'

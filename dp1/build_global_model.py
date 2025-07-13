@@ -1,36 +1,31 @@
 import pickle
-import tensorflow as tf
-import numpy as np
+import joblib
 import os
+import numpy as np
+from sklearn.linear_model import LogisticRegression
 
-# === CONFIG ===
+# === Load global weights from FL ===
 weights_path = "results/global_weights_round_5.pkl"
-output_model_path = "results/global_model.h5"
-input_dim = 20  # שנה את זה לפי מספר הפיצ'רים האמיתי שלך
-
-# === Load aggregated weights ===
 with open(weights_path, "rb") as f:
     weights = pickle.load(f)
 
 print(f"[INFO] Loaded weights from {weights_path}")
-print(f"[INFO] Weight shapes: {[w.shape for w in weights]}")
+print(f"[INFO] weights[0] shape (coefficients): {weights[0].shape}")
+print(f"[INFO] weights[1] shape (intercept): {weights[1].shape}")
 
-# === Build the same model structure as the clients ===
-model = tf.keras.Sequential([
-    tf.keras.layers.Input(shape=(input_dim,)),
-    tf.keras.layers.Dense(1, activation='sigmoid')
-])
-model.build()
+# === Build scikit-learn LogisticRegression model ===
+model = LogisticRegression()
+model.coef_ = weights[0].reshape(1, -1)  # shape: (1, num_features)
+model.intercept_ = np.array([weights[1][0]])  # shape: (1,)
+model.classes_ = np.array([0, 1])  # must be ndarray, not list
 
-# === Assign weights ===
-try:
-    model.set_weights(weights)
-    print("[INFO] Weights successfully loaded into the model.")
-except Exception as e:
-    print(f"[ERROR] Failed to set weights: {e}")
-    exit(1)
+print(f"[INFO] Model ready with coef_.shape = {model.coef_.shape}")
+print(f"[INFO] Intercept = {model.intercept_}")
+print(f"[INFO] Classes = {model.classes_}")
 
-# === Save the unified global model ===
-os.makedirs(os.path.dirname(output_model_path), exist_ok=True)
-model.save(output_model_path)
-print(f"[SUCCESS] Global model saved to: {output_model_path}")
+# === Save model ===
+output_path = "results/global_model_sklearn.pkl"
+os.makedirs("results", exist_ok=True)
+joblib.dump(model, output_path)
+
+print(f"[SUCCESS] Sklearn global model saved to {output_path}")

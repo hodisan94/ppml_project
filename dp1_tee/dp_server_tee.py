@@ -10,17 +10,17 @@ import logging
 import numpy as np
 import os
 import warnings
-
+from pathlib import Path
+import subprocess, ssl
 # Suppress various warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
-logging.getLogger('grpc').setLevel(logging.ERROR)
 from flwr.server.client_proxy import ClientProxy
 from flwr.common import EvaluateRes, FitRes, Scalar, parameters_to_ndarrays
 from tee_config import TEEConfig, SGX_TEE_CONFIG
 from sgx_utils import SGXEnclave, secure_aggregate_weights
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+logging.getLogger('grpc').setLevel(logging.NOTSET)
 NUM_CLIENTS = 5
 
 
@@ -227,10 +227,36 @@ TEE Summary:
 
 
 def main():
-    # Parse command line arguments for DP and TEE configuration
-    use_dp = sys.argv[1].lower() == 'true' if len(sys.argv) > 1 else True
-    use_tee = sys.argv[2].lower() == 'true' if len(sys.argv) > 2 else False
-    
+    # 1) Parse args
+    use_dp   = sys.argv[1].lower() == "true"
+    use_tee  = sys.argv[2].lower() == "true"
+    # If the user didn’t pass an experiment name, default it:
+    experiment_name = sys.argv[3] if len(sys.argv) > 3 else "default"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 2) Generate + load certificates based on experiment_name
+    cert_dir = Path("certificates")
+    cert_dir.mkdir(exist_ok=True)
+
+    cert_file = cert_dir / f"{experiment_name}.pem"
+    key_file  = cert_dir / f"{experiment_name}.key"
+
+    if not cert_file.exists() or not key_file.exists():
+        print(f"[SERVER] Generating new SSL cert/key for experiment '{experiment_name}'")
+        subprocess.run([
+            "openssl", "req", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key_file),
+            "-x509", "-days", "365", "-out", str(cert_file),
+            "-subj", f"/CN={experiment_name}"
+        ], check=True)
+
+    certificate_chain = cert_file.read_bytes()
+    private_key       = key_file.read_bytes()
+
+    # Flower expects (certificate, private_key, root_certificate)
+    certificates = (certificate_chain, private_key, certificate_chain)
+    print(f"[SERVER] SSL certificates loaded for '{experiment_name}'")
+
     # Configure TEE
     if use_tee:
         tee_config = SGX_TEE_CONFIG
@@ -295,7 +321,7 @@ def main():
                     private_key = f.read()
                 
                 # Flower expects (private_key, certificate_chain, root_certificate)
-                certificates = (private_key, certificate_chain, None)
+                certificates = (private_key, certificate_chain, certificate_chain)
                 print("[SERVER] SSL certificates loaded")
                 
             except Exception as e:

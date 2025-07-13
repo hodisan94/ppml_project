@@ -223,9 +223,14 @@ sys.enable_extra_runtime_domain_names_conf = true
         try:
             # Use the gramine path we found during initialization
             gramine_cmd = getattr(self, 'gramine_path', 'gramine-sgx')
-            
-            # Prepare Gramine command
-            cmd = [gramine_cmd, 'python', script_path] + (args or [])
+
+            # Ensure manifest exists
+            if not self.manifest_path or not os.path.exists(self.manifest_path):
+                if not self._generate_manifest():
+                    raise RuntimeError("Failed to generate Gramine manifest")
+
+            # Prepare Gramine command: gramine-sgx <manifest> <script> <args>
+            cmd = [gramine_cmd, self.manifest_path, script_path] + (args or [])
             
             # Set environment variables
             env = os.environ.copy()

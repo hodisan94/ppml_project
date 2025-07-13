@@ -15,6 +15,18 @@ NUM_CLIENTS = 5
 PORT = "8086"
 
 
+def monitor_server_output(process, output_queue):
+    """Monitor server output and display it"""
+    try:
+        for line in iter(process.stdout.readline, ''):
+            if line:
+                line = line.strip()
+                print(f"[SERVER] {line}")
+                output_queue.put(('server', line))
+    except Exception as e:
+        print(f"[MAIN] Error monitoring server: {e}")
+
+
 def monitor_client_output(client_id, process, output_queue, use_dp=True):
     """Monitor client output and extract metrics"""
     try:
@@ -150,26 +162,38 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
         print(f"\n[MAIN] Starting experiment: {experiment_name}")
         print(f"[MAIN] DP: {use_dp}, Noise Multiplier: {noise_multiplier}")
 
-        # Start server
+        # Start server with visible output
         print("[MAIN] Starting Flower server...")
         server_process = subprocess.Popen(
             [PYTHON, "-u", "dp_server.py", str(use_dp).lower()],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
 
+        # Start server monitoring thread
+        output_queue = Queue()
+        server_monitor_thread = threading.Thread(
+            target=monitor_server_output,
+            args=(server_process, output_queue)
+        )
+        server_monitor_thread.daemon = True
+        server_monitor_thread.start()
+
         # Give server time to start
+        print("[MAIN] Waiting for server to start...")
         time.sleep(5)
 
         # Check if server started successfully
         if server_process.poll() is not None:
-            stdout, _ = server_process.communicate()
-            print(f"[MAIN] Server failed to start. Output: {stdout}")
+            print(f"[MAIN] Server failed to start! Return code: {server_process.returncode}")
             return False
 
+        print("[MAIN] Server started successfully!")
+
         # Start clients
-        output_queue = Queue()
         monitor_threads = []
 
         for client_id in range(1, NUM_CLIENTS + 1):
@@ -218,8 +242,12 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
                 while not output_queue.empty():
                     item = output_queue.get_nowait()
 
-                    if item[0] == 'accuracy':
-                        _, client_id, accuracy = item  # Fixed: only 3 items
+                    if item[0] == 'server':
+                        # Server messages are already printed, just continue
+                        continue
+
+                    elif item[0] == 'accuracy':
+                        _, client_id, accuracy = item
                         round_counts[client_id] += 1
                         round_num = round_counts[client_id]
 
@@ -257,6 +285,14 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
             except subprocess.TimeoutExpired:
                 print(f"[MAIN] Client {client_id} timed out, terminating...")
                 proc.terminate()
+
+        # Wait for server to finish
+        print("[MAIN] Waiting for server to finish...")
+        try:
+            server_process.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            print("[MAIN] Server timed out, terminating...")
+            server_process.terminate()
 
         # Drain any remaining metrics from the queue
         time.sleep(2)  # Give threads time to finish
@@ -304,7 +340,7 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
 
     finally:
         # Cleanup
-        server_process.wait()
+        cleanup_processes(server_process, client_processes)
 
 
 def signal_handler(signum, frame):
@@ -395,6 +431,8 @@ def main():
             print("Files generated:")
             print("- fl_metrics.csv: Detailed metrics for each round")
             print("- experiment_summary.json: Experiment summary and final metrics")
+            print("- global_model.h5: Final aggregated model")
+            print("- global_model_weights.pkl: Model weights for MIA analysis")
 
         print("\nExperiment completed!")
 

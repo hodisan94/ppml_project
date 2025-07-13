@@ -226,6 +226,10 @@ sys.enable_extra_runtime_domain_names_conf = true
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
 
+            # At this point, self.manifest_path is guaranteed to be not None
+            if not self.manifest_path:
+                raise RuntimeError("Manifest path is None after generation")
+            
             manifest_dir = os.path.dirname(self.manifest_path)
 
             # 1) Build the .manifest.sgx if needed
@@ -237,8 +241,31 @@ sys.enable_extra_runtime_domain_names_conf = true
                 raise RuntimeError(f"Manifest build failed: {result.stderr}")
             self.logger.info(f"[SGX] Manifest built successfully: {sgx_manifest_path}")
 
-            # 2) **Run** using the base name so Gramine finds python.manifest.sgx
-            manifest_base, _ = os.path.splitext(self.manifest_path)  # drops “.manifest”
+            # 2) Generate signing key if it doesn't exist
+            signing_key_path = os.path.expanduser("~/.config/gramine/enclave-key.pem")
+            if not os.path.exists(signing_key_path):
+                self.logger.info("[SGX] Generating SGX signing key...")
+                os.makedirs(os.path.dirname(signing_key_path), exist_ok=True)
+                key_gen_result = subprocess.run(["gramine-sgx-gen-private-key"], 
+                                              cwd=manifest_dir, capture_output=True, text=True)
+                if key_gen_result.returncode != 0:
+                    raise RuntimeError(f"Key generation failed: {key_gen_result.stderr}")
+                self.logger.info(f"[SGX] Signing key generated: {signing_key_path}")
+
+            # 3) Sign the manifest to create .sig file
+            manifest_base, _ = os.path.splitext(self.manifest_path)  # drops ".manifest"
+            sig_file = manifest_base + ".sig"
+            
+            if not os.path.exists(sig_file):
+                self.logger.info("[SGX] Signing manifest...")
+                sign_cmd = ["gramine-sgx-sign", "--manifest", self.manifest_path, 
+                           "--key", signing_key_path, "--output", sgx_manifest_path]
+                sign_result = subprocess.run(sign_cmd, cwd=manifest_dir, capture_output=True, text=True)
+                if sign_result.returncode != 0:
+                    raise RuntimeError(f"Manifest signing failed: {sign_result.stderr}")
+                self.logger.info(f"[SGX] Manifest signed successfully: {sig_file}")
+
+            # 4) **Run** using the base name so Gramine finds python.manifest.sgx and python.sig
             cmd = [gramine_cmd, manifest_base, script_path] + (args or [])
             env = os.environ.copy()
             if self.tee_config.debug_mode:
@@ -250,7 +277,10 @@ sys.enable_extra_runtime_domain_names_conf = true
             self.logger.error(f"[SGX] Failed to run in enclave: {e}")
             if self.tee_config.strict_mode:
                 raise
-            return None
+            # Fall back to normal Python execution
+            fallback_cmd = [sys.executable, script_path] + (args or [])
+            self.logger.info(f"[SGX] Falling back to host execution: {' '.join(fallback_cmd)}")
+            return subprocess.Popen(fallback_cmd)
 
     def get_enclave_measurement(self) -> Optional[str]:
         """Get enclave measurement for attestation"""

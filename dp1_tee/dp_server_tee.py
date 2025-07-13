@@ -254,7 +254,12 @@ def main():
     private_key       = key_file.read_bytes()
 
     # Flower expects (certificate_chain, private_key, root_certificate)
-    certificates = (certificate_chain, private_key, certificate_chain)
+    # certificates = (certificate_chain, private_key, certificate_chain)
+    certificates = (
+               certificate_chain,  # CA certificate (self-signed == server cert)
+               certificate_chain,  # server certificate
+               private_key  # server private key
+        )
     print(f"[SERVER] SSL certificates loaded for '{experiment_name}'")
 
     # Configure TEE

@@ -90,7 +90,7 @@ tensorflow==2.13.1
 tensorflow-datasets==4.9.2
 tensorflow-estimator==2.13.0
 tensorflow-hub==0.16.1
-tensorflow-io-gcs-filesystem==0.34.0
+tensorflow-io-gcs-filesystem==0.31.0
 tensorflow-metadata==1.14.0
 tensorflow-model-optimization==0.8.0
 tensorflow-privacy==0.8.11

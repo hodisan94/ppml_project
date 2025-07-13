@@ -219,52 +219,33 @@ sys.enable_extra_runtime_domain_names_conf = true
             cmd = [sys.executable, script_path] + (args or [])
             self.logger.info(f"[SGX] Running without enclave: {' '.join(cmd)}")
             return subprocess.Popen(cmd)
-        
         try:
-            # Use the gramine path we found during initialization
             gramine_cmd = getattr(self, 'gramine_path', 'gramine-sgx')
-
             # Ensure manifest exists
             if not self.manifest_path or not os.path.exists(self.manifest_path):
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
-
-            # Ensure .manifest.sgx is built
-            manifest_sgx = f"{self.manifest_path}.sgx"
-            if not os.path.exists(manifest_sgx):
-                self.logger.info("[SGX] Building .manifest.sgx file via gramine-sgx --build")
-                subprocess.run([gramine_cmd, "--build", self.manifest_path], check=True)
-
+            manifest_dir = os.path.dirname(self.manifest_path)
+            manifest_file = os.path.basename(self.manifest_path)
+            manifest_sgx = f"{manifest_file}.sgx"
+            manifest_sgx_path = os.path.join(manifest_dir, manifest_sgx)
+            # Build .manifest.sgx in the manifest directory if missing
+            if not os.path.exists(manifest_sgx_path):
+                self.logger.info(f"[SGX] Building .manifest.sgx file via gramine-sgx --build in {manifest_dir}")
+                subprocess.run([gramine_cmd, "--build", manifest_file], check=True, cwd=manifest_dir)
             # Prepare Gramine command: gramine-sgx <manifest.sgx> <script> <args>
             cmd = [gramine_cmd, manifest_sgx, script_path] + (args or [])
-            
-            # Set environment variables
             env = os.environ.copy()
             if self.tee_config.debug_mode:
                 env['GRAMINE_LOG_LEVEL'] = 'debug'
-            
-            self.logger.info(f"[SGX] Running in enclave: {' '.join(cmd)}")
-            
-            # Start process in enclave
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                env=env
-            )
-            
-            return process
-            
+            self.logger.info(f"[SGX] Running in enclave: {' '.join(cmd)} (cwd={manifest_dir})")
+            return subprocess.Popen(cmd, cwd=manifest_dir, env=env)
         except Exception as e:
             self.logger.error(f"[SGX] Failed to run in enclave: {e}")
-            # In strict mode, don't fallback
-            if '--use-tee' in sys.argv:
+            if self.tee_config.strict_mode:
                 self.logger.error("[SGX] TEE explicitly requested but enclave execution failed")
-                raise e
-            # Fallback to normal execution only if TEE not explicitly requested
-            cmd = [sys.executable, script_path] + (args or [])
-            return subprocess.Popen(cmd)
+                raise
+            return None
     
     def get_enclave_measurement(self) -> Optional[str]:
         """Get enclave measurement for attestation"""

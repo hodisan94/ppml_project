@@ -120,9 +120,16 @@ if __name__ == "__main__":
         model_path = f"../dp1/results/fl_dp_model_client_{i}.h5"
         run_and_report(model_path, X_member, X_nonmember, framework="keras")
 
-    # Attack the global sklearn model (if applicable)
-    global_model_path = "../dp1/results/global_model_sklearn.pkl"
-    if os.path.exists(global_model_path):
-        run_and_report(global_model_path, X_member, X_nonmember, framework="sklearn")
+    # Attack the aggregated keras model (if applicable)
+    aggregated_model_path = "../dp1/results/fl_dp_global_model_aggregated.h5"
+    if os.path.exists(aggregated_model_path):
+        run_and_report(aggregated_model_path, X_member, X_nonmember, framework="keras")
     else:
-        print(f"[DEBUG] Global model not found at: {global_model_path}")
+        print(f"[DEBUG] Aggregated Keras model not found at: {aggregated_model_path}")
+
+    # Attack the naive full-data model
+    naive_model_path = "../dp1/results/naive_model.pkl"
+    if os.path.exists(naive_model_path):
+        run_and_report(naive_model_path, X_member, X_nonmember, framework="sklearn")
+    else:
+        print(f"[DEBUG] Naive model not found at: {naive_model_path}")

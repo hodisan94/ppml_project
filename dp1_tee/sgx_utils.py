@@ -96,69 +96,69 @@ class SGXEnclave:
             return True
         except Exception as e:
             self.logger.error(f"[SGX] Failed to generate manifest: {e}")
-            return False_get_manifest_template
+            return False
 
     def _get_manifest_template(self) -> str:
-            """Get Gramine manifest template for Python ML workload"""
-            python_path = sys.executable
-            current_dir = os.getcwd()
+        """Get Gramine manifest template for Python ML workload"""
+        python_path = sys.executable
+        current_dir = os.getcwd()
 
-            manifest = f"""
-    # Gramine manifest for Python ML with TensorFlow and Flower
+        manifest = f"""
+# Gramine manifest for Python ML with TensorFlow and Flower
 
-    loader.entrypoint = "file:{python_path}"
-    libos.entrypoint = "{python_path}"
+loader.entrypoint = "file:{python_path}"
+libos.entrypoint = "{python_path}"
 
-    loader.log_level = "{'debug' if self.tee_config.sgx_debug else 'error'}"
+loader.log_level = "{'debug' if self.tee_config.sgx_debug else 'error'}"
 
-    loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu"
-    loader.env.PATH = "/bin:/usr/bin:/usr/local/bin"
-    loader.env.PYTHONPATH = "{current_dir}"
-    loader.env.HOME = "/home/user"
+loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu"
+loader.env.PATH = "/bin:/usr/bin:/usr/local/bin"
+loader.env.PYTHONPATH = "{current_dir}"
+loader.env.HOME = "/home/user"
 
-    # SGX Configuration
-    sgx.debug = {'true' if self.tee_config.enclave_debug else 'false'}
-    sgx.enclave_size = "{self.tee_config.enclave_heap_size}"
-    # (sgx.thread_num removed—no longer supported)
+# SGX Configuration
+sgx.debug = {'true' if self.tee_config.enclave_debug else 'false'}
+sgx.enclave_size = "{self.tee_config.enclave_heap_size}"
+# (sgx.thread_num removed—no longer supported)
 
-    # Enable attestation
-    sgx.remote_attestation = "{'dcap' if self.tee_config.attestation_type == 'dcap' else 'none'}"
+# Enable attestation
+sgx.remote_attestation = "{'dcap' if self.tee_config.attestation_type == 'dcap' else 'none'}"
 
-    # File system
-    fs.mounts = [
-        {{ path = "/lib",    uri = "file:/lib" }},
-        {{ path = "/lib64",  uri = "file:/lib64" }},
-        {{ path = "/usr",    uri = "file:/usr" }},
-        {{ path = "/bin",    uri = "file:/bin" }},
-        {{ path = "/etc",    uri = "file:/etc" }},
-        {{ path = "/tmp",    uri = "file:/tmp" }},
-        {{ path = "/home/user", uri = "file:{current_dir}" }},
-        {{ path = "/data",   uri = "file:{current_dir}/data" }},
-    ]
+# File system
+fs.mounts = [
+    {{ path = "/lib",    uri = "file:/lib" }},
+    {{ path = "/lib64",  uri = "file:/lib64" }},
+    {{ path = "/usr",    uri = "file:/usr" }},
+    {{ path = "/bin",    uri = "file:/bin" }},
+    {{ path = "/etc",    uri = "file:/etc" }},
+    {{ path = "/tmp",    uri = "file:/tmp" }},
+    {{ path = "/home/user", uri = "file:{current_dir}" }},
+    {{ path = "/data",   uri = "file:{current_dir}/data" }},
+]
 
-    # Trusted files (Python and libraries)
-    sgx.trusted_files = [
-        "file:{python_path}",
-        "file:/lib/",
-        "file:/lib64/",
-        "file:/usr/lib/",
-        "file:/usr/bin/",
-        "file:{current_dir}/",
-    ]
+# Trusted files (Python and libraries)
+sgx.trusted_files = [
+    "file:{python_path}",
+    "file:/lib/",
+    "file:/lib64/",
+    "file:/usr/lib/",
+    "file:/usr/bin/",
+    "file:{current_dir}/",
+]
 
-    # Allowed files (data and temporary files)
-    sgx.allowed_files = [
-        "file:/tmp/",
-        "file:/data/",
-        "file:{current_dir}/data/",
-        "file:{current_dir}/results/",
-    ]
+# Allowed files (data and temporary files)
+sgx.allowed_files = [
+    "file:/tmp/",
+    "file:/data/",
+    "file:{current_dir}/data/",
+    "file:{current_dir}/results/",
+]
 
-    # Network access
-    sys.enable_sigterm_injection = true
-    sys.enable_extra_runtime_domain_names_conf = true
-    """
-            return manifest
+# Network access
+sys.enable_sigterm_injection = true
+sys.enable_extra_runtime_domain_names_conf = true
+"""
+        return manifest
 
     def _initialize_gramine(self) -> bool:
         """Initialize Gramine-SGX enclave"""
@@ -226,10 +226,24 @@ class SGXEnclave:
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
 
-            manifest_dir = os.path.dirname(self.manifest_path)
-
-            # Single-step build & run: pass the manifest file as positional arg
-            cmd = [gramine_cmd, self.manifest_path, script_path] + (args or [])
+            manifest_dir = os.path.dirname(self.manifest_path) if self.manifest_path else os.getcwd()
+            
+            # Step 1: Build the manifest
+            if not self.manifest_path:
+                raise RuntimeError("Manifest path is None")
+            sgx_manifest_path = self.manifest_path + ".sgx"
+            build_cmd = ["gramine-manifest", self.manifest_path, sgx_manifest_path]
+            self.logger.info(f"[SGX] Building manifest: {' '.join(build_cmd)}")
+            
+            build_result = subprocess.run(build_cmd, cwd=manifest_dir, capture_output=True, text=True)
+            if build_result.returncode != 0:
+                self.logger.error(f"[SGX] Manifest build failed: {build_result.stderr}")
+                raise RuntimeError(f"Manifest build failed: {build_result.stderr}")
+            
+            self.logger.info(f"[SGX] Manifest built successfully: {sgx_manifest_path}")
+            
+            # Step 2: Run with the built manifest
+            cmd = [gramine_cmd, sgx_manifest_path, script_path] + (args or [])
             env = os.environ.copy()
             if self.tee_config.debug_mode:
                 env['GRAMINE_LOG_LEVEL'] = 'debug'

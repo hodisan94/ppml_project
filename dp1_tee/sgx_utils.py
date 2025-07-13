@@ -242,8 +242,8 @@ sys.enable_extra_runtime_domain_names_conf = true
             
             self.logger.info(f"[SGX] Manifest built successfully: {sgx_manifest_path}")
             
-            # Step 2: Run with the built manifest
-            cmd = [gramine_cmd, sgx_manifest_path, script_path] + (args or [])
+            # Step 2: Run with the built manifest (pass base manifest name, not .sgx)
+            cmd = [gramine_cmd, self.manifest_path, script_path] + (args or [])
             env = os.environ.copy()
             if self.tee_config.debug_mode:
                 env['GRAMINE_LOG_LEVEL'] = 'debug'

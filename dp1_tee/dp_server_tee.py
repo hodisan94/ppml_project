@@ -296,9 +296,6 @@ def main():
         certificates = None
         if use_tee:
             try:
-                import ssl
-                from pathlib import Path
-                
                 cert_dir = Path("certificates")
                 cert_dir.mkdir(exist_ok=True)
                 
@@ -308,7 +305,6 @@ def main():
                 
                 if not cert_file.exists() or not key_file.exists():
                     print("[SERVER] SSL certificate or key not found, generating new ones...")
-                    import subprocess
                     subprocess.run([
                         "openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key_file),
                         "-x509", "-days", "365", "-out", str(cert_file), "-subj", "/CN=localhost"
@@ -320,8 +316,8 @@ def main():
                 with open(key_file, 'rb') as f:
                     private_key = f.read()
                 
-                # Flower expects (private_key, certificate_chain, root_certificate)
-                certificates = (private_key, certificate_chain, certificate_chain)
+                # Flower expects (certificate_chain, private_key, root_certificate)
+                certificates = (certificate_chain, private_key, certificate_chain)
                 print("[SERVER] SSL certificates loaded")
                 
             except Exception as e:

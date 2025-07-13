@@ -243,7 +243,7 @@ try:
                 print(f"[CLIENT {client_id}] Using SSL connection")
             else:
                 root_certificates = None
-                print(f"[CLIENT {client_id}] SSL certificate not found, using insecure connection")
+                print(f"[CLIENT {client_id}] SSL certificate not found, using insecure connection (will auto-generate on server if needed)")
         except Exception as e:
             print(f"[CLIENT {client_id}] SSL setup failed: {e}, using insecure connection")
             root_certificates = None

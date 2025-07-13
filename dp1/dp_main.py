@@ -9,6 +9,7 @@ from queue import Queue
 import argparse
 import json
 
+
 PYTHON = sys.executable
 NUM_CLIENTS = 5
 PORT = "8086"
@@ -304,7 +305,6 @@ def run_experiment(use_dp=True, noise_multiplier=1.0, experiment_name="default")
     finally:
         # Cleanup
         server_process.wait()
-        # cleanup_processes(server_process, client_processes)
 
 
 def signal_handler(signum, frame):

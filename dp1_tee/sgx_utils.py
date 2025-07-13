@@ -211,8 +211,8 @@ sys.enable_extra_runtime_domain_names_conf = true
         except Exception as e:
             self.logger.error(f"[SGX] Error finding gramine command: {e}")
             return None
-    
-    def run_in_enclave(self,script_path: str,args: Optional[List[str]] = None) -> Optional[subprocess.Popen]:
+
+    def run_in_enclave(self, script_path: str, args: Optional[List[str]] = None) -> Optional[subprocess.Popen]:
         """Run a Python script inside SGX enclave"""
         if not self.tee_config.use_tee or not self.is_initialized:
             cmd = [sys.executable, script_path] + (args or [])
@@ -226,24 +226,20 @@ sys.enable_extra_runtime_domain_names_conf = true
                 if not self._generate_manifest():
                     raise RuntimeError("Failed to generate Gramine manifest")
 
-            manifest_dir = os.path.dirname(self.manifest_path) if self.manifest_path else os.getcwd()
-            
-            # Step 1: Build the manifest
-            if not self.manifest_path:
-                raise RuntimeError("Manifest path is None")
+            manifest_dir = os.path.dirname(self.manifest_path)
+
+            # 1) Build the .manifest.sgx if needed
             sgx_manifest_path = self.manifest_path + ".sgx"
             build_cmd = ["gramine-manifest", self.manifest_path, sgx_manifest_path]
             self.logger.info(f"[SGX] Building manifest: {' '.join(build_cmd)}")
-            
-            build_result = subprocess.run(build_cmd, cwd=manifest_dir, capture_output=True, text=True)
-            if build_result.returncode != 0:
-                self.logger.error(f"[SGX] Manifest build failed: {build_result.stderr}")
-                raise RuntimeError(f"Manifest build failed: {build_result.stderr}")
-            
+            result = subprocess.run(build_cmd, cwd=manifest_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"Manifest build failed: {result.stderr}")
             self.logger.info(f"[SGX] Manifest built successfully: {sgx_manifest_path}")
-            
-            # Step 2: Run with the built manifest (pass base manifest name, not .sgx)
-            cmd = [gramine_cmd, self.manifest_path, script_path] + (args or [])
+
+            # 2) **Run** using the base name so Gramine finds python.manifest.sgx
+            manifest_base, _ = os.path.splitext(self.manifest_path)  # drops “.manifest”
+            cmd = [gramine_cmd, manifest_base, script_path] + (args or [])
             env = os.environ.copy()
             if self.tee_config.debug_mode:
                 env['GRAMINE_LOG_LEVEL'] = 'debug'
@@ -256,7 +252,6 @@ sys.enable_extra_runtime_domain_names_conf = true
                 raise
             return None
 
-    
     def get_enclave_measurement(self) -> Optional[str]:
         """Get enclave measurement for attestation"""
         if not self.tee_config.use_tee or not self.is_initialized:

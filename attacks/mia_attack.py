@@ -5,23 +5,59 @@ from sklearn.metrics import (
     accuracy_score, roc_auc_score, precision_recall_fscore_support, roc_curve
 )
 from keras.models import load_model
-import joblib  # for sklearn models
+import joblib
+
+
+def get_loss_scores(model, X, y, framework="keras"):
+    """Get per-sample loss scores (better than confidence for MIA)"""
+    print(f"[DEBUG] Getting loss scores using framework: {framework}")
+
+    if framework == "keras":
+        # Use model's loss function to get per-sample loss
+        import tensorflow as tf
+
+        # Convert to tf tensors
+        X_tf = tf.constant(X, dtype=tf.float32)
+        y_tf = tf.constant(y, dtype=tf.float32)
+
+        # Get predictions
+        with tf.GradientTape() as tape:
+            predictions = model(X_tf, training=False)
+            # Use categorical crossentropy for multi-class
+            loss = tf.keras.losses.categorical_crossentropy(y_tf, predictions)
+
+        return loss.numpy()
+
+    elif framework == "sklearn":
+        # For sklearn, use negative log-likelihood
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X)
+            # Convert y to class indices if needed
+            if len(y.shape) > 1:
+                y_indices = np.argmax(y, axis=1)
+            else:
+                y_indices = y.astype(int)
+
+            # Get probability for true class
+            true_class_probs = probs[np.arange(len(y_indices)), y_indices]
+            # Return negative log-likelihood
+            return -np.log(true_class_probs + 1e-10)
+        else:
+            raise ValueError("Sklearn model does not support predict_proba")
+
+    else:
+        raise ValueError("Unknown framework")
 
 
 def get_confidence_scores(model, X, framework="keras"):
+    """Original confidence-based approach"""
     print(f"[DEBUG] Getting confidence scores using framework: {framework}")
     if framework == "keras":
-        print(f"[DEBUG] Predicting probabilities for {X.shape[0]} samples...")
         probs = model.predict(X)
-        print(f"[DEBUG] Predicted shape: {probs.shape}")
         return np.max(probs, axis=1)
     elif framework == "sklearn":
         if hasattr(model, "predict_proba"):
-            print(f"[DEBUG] Predicting probabilities for {X.shape[0]} samples (sklearn)...")
-            if isinstance(model.classes_, list):
-                model.classes_ = np.array(model.classes_)
             probs = model.predict_proba(X)
-            print(f"[DEBUG] Predicted shape: {probs.shape}")
             return np.max(probs, axis=1)
         else:
             raise ValueError("Sklearn model does not support predict_proba")
@@ -29,52 +65,165 @@ def get_confidence_scores(model, X, framework="keras"):
         raise ValueError("Unknown framework")
 
 
-def evaluate_mia(model, X_member, X_nonmember, framework="keras"):
-    print("[DEBUG] Evaluating MIA...")
+def get_entropy_scores(model, X, framework="keras"):
+    """Get prediction entropy (lower entropy = more confident = more likely member)"""
+    print(f"[DEBUG] Getting entropy scores using framework: {framework}")
 
-    member_scores = get_confidence_scores(model, X_member, framework)
-    nonmember_scores = get_confidence_scores(model, X_nonmember, framework)
+    if framework == "keras":
+        probs = model.predict(X)
+        # Add small epsilon to avoid log(0)
+        entropy = -np.sum(probs * np.log(probs + 1e-10), axis=1)
+        return entropy
 
-    y_true = np.concatenate([np.ones(len(X_member)), np.zeros(len(X_nonmember))])
-    y_scores = np.concatenate([member_scores, nonmember_scores])
+    elif framework == "sklearn":
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X)
+            entropy = -np.sum(probs * np.log(probs + 1e-10), axis=1)
+            return entropy
+        else:
+            raise ValueError("Sklearn model does not support predict_proba")
 
-    print(f"[DEBUG] Member scores: mean={member_scores.mean():.4f}, std={member_scores.std():.4f}")
-    print(f"[DEBUG] Non-member scores: mean={nonmember_scores.mean():.4f}, std={nonmember_scores.std():.4f}")
+    else:
+        raise ValueError("Unknown framework")
+
+
+def evaluate_mia_comprehensive(model, X_member, X_nonmember, y_member, y_nonmember, framework="keras"):
+    """Comprehensive MIA evaluation with multiple attack strategies"""
+    print("[DEBUG] Evaluating MIA with multiple strategies...")
+
+    results = {}
+
+    # Strategy 1: Confidence-based attack
+    print("[DEBUG] Strategy 1: Confidence-based attack")
+    try:
+        member_conf = get_confidence_scores(model, X_member, framework)
+        nonmember_conf = get_confidence_scores(model, X_nonmember, framework)
+
+        y_true = np.concatenate([np.ones(len(X_member)), np.zeros(len(X_nonmember))])
+        y_scores = np.concatenate([member_conf, nonmember_conf])
+
+        results['confidence'] = evaluate_attack_performance(y_true, y_scores, "Confidence")
+    except Exception as e:
+        print(f"[ERROR] Confidence attack failed: {e}")
+        results['confidence'] = None
+
+    # Strategy 2: Entropy-based attack (lower entropy = more likely member)
+    print("[DEBUG] Strategy 2: Entropy-based attack")
+    try:
+        member_entropy = get_entropy_scores(model, X_member, framework)
+        nonmember_entropy = get_entropy_scores(model, X_nonmember, framework)
+
+        # For entropy, we want LOWER scores for members, so we negate
+        y_scores = np.concatenate([-member_entropy, -nonmember_entropy])
+
+        results['entropy'] = evaluate_attack_performance(y_true, y_scores, "Entropy")
+    except Exception as e:
+        print(f"[ERROR] Entropy attack failed: {e}")
+        results['entropy'] = None
+
+    # Strategy 3: Loss-based attack (only if we have labels)
+    print("[DEBUG] Strategy 3: Loss-based attack")
+    if y_member is not None and y_nonmember is not None:
+        try:
+            member_loss = get_loss_scores(model, X_member, y_member, framework)
+            nonmember_loss = get_loss_scores(model, X_nonmember, y_nonmember, framework)
+
+            # For loss, we want LOWER scores for members, so we negate
+            y_scores = np.concatenate([-member_loss, -nonmember_loss])
+
+            results['loss'] = evaluate_attack_performance(y_true, y_scores, "Loss")
+        except Exception as e:
+            print(f"[ERROR] Loss attack failed: {e}")
+            results['loss'] = None
+    else:
+        print("[DEBUG] No labels provided, skipping loss-based attack")
+        results['loss'] = None
+
+    return results
+
+
+def evaluate_attack_performance(y_true, y_scores, attack_name):
+    """Evaluate attack performance with threshold sweeping"""
+    print(f"[DEBUG] Evaluating {attack_name} attack performance...")
 
     # Sweep thresholds
-    print("[DEBUG] Sweeping thresholds to find best attack accuracy...")
-    thresholds = np.linspace(0, 1, 101)
+    thresholds = np.linspace(np.min(y_scores), np.max(y_scores), 101)
     best_acc, best_thresh = 0, 0
+
     for t in thresholds:
         y_pred = (y_scores > t).astype(int)
         acc = accuracy_score(y_true, y_pred)
         if acc > best_acc:
             best_acc = acc
             best_thresh = t
-    print(f"[DEBUG] Best threshold found: {best_thresh:.2f} with accuracy: {best_acc:.4f}")
 
-    # Final prediction
+    # Final prediction with best threshold
     y_pred = (y_scores > best_thresh).astype(int)
 
-    # Metrics
+    # Calculate metrics
     auc = roc_auc_score(y_true, y_scores)
     precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary")
     fpr, tpr, _ = roc_curve(y_true, y_scores)
 
+    print(f"[DEBUG] {attack_name} - Best threshold: {best_thresh:.4f}, Accuracy: {best_acc:.4f}")
+
     return {
+        "attack_name": attack_name,
         "best_thresh": best_thresh,
         "accuracy": best_acc,
         "auc": auc,
         "precision": precision,
         "recall": recall,
         "f1": f1,
-        "roc": (fpr, tpr)
+        "roc": (fpr, tpr),
+        "scores": y_scores
     }
 
 
-def run_and_report(model_path, X_member, X_nonmember, framework="keras"):
+def validate_data_split(X_member, X_nonmember, y_member=None, y_nonmember=None):
+    """Validate that member and non-member data are properly split"""
+    print("[DEBUG] Validating data split...")
+
+    # Check shapes
+    print(f"[DEBUG] Member data shape: {X_member.shape}")
+    print(f"[DEBUG] Non-member data shape: {X_nonmember.shape}")
+
+    if y_member is not None:
+        print(f"[DEBUG] Member labels shape: {y_member.shape}")
+    if y_nonmember is not None:
+        print(f"[DEBUG] Non-member labels shape: {y_nonmember.shape}")
+
+    # Check for exact duplicates (this shouldn't happen in proper split)
+    if X_member.shape[1] == X_nonmember.shape[1]:
+        # Convert to strings for comparison (handles floating point issues)
+        member_strings = set(str(row) for row in X_member)
+        nonmember_strings = set(str(row) for row in X_nonmember)
+
+        overlap = member_strings.intersection(nonmember_strings)
+        if overlap:
+            print(f"[WARNING] Found {len(overlap)} exact duplicates between member and non-member data!")
+            print("[WARNING] This will make MIA evaluation invalid!")
+            return False
+        else:
+            print("[DEBUG] No exact duplicates found - good!")
+
+    return True
+
+
+def run_comprehensive_attack(model_path, X_member, X_nonmember, y_member=None, y_nonmember=None, framework="keras"):
+    """Run comprehensive MIA attack with multiple strategies"""
     name = os.path.basename(model_path)
-    print(f"\n[DEBUG] Loading model: {model_path}")
+    print(f"\n{'=' * 50}")
+    print(f"[DEBUG] Running comprehensive MIA on: {name}")
+    print(f"{'=' * 50}")
+
+    # Validate data
+    if not validate_data_split(X_member, X_nonmember, y_member, y_nonmember):
+        print("[ERROR] Data validation failed!")
+        return None
+
+    # Load model
+    print(f"[DEBUG] Loading model: {model_path}")
     if framework == "keras":
         model = load_model(model_path, compile=False)
     elif framework == "sklearn":
@@ -82,54 +231,112 @@ def run_and_report(model_path, X_member, X_nonmember, framework="keras"):
     else:
         raise ValueError("Unknown framework")
 
-    print(f"[DEBUG] Running MIA on model: {name}")
-    result = evaluate_mia(model, X_member, X_nonmember, framework)
+    # Run comprehensive attack
+    results = evaluate_mia_comprehensive(model, X_member, X_nonmember, y_member, y_nonmember, framework)
 
-    print(f"\n[MIA] Results for {name}")
-    print(f"  • Best threshold : {result['best_thresh']:.2f}")
-    print(f"  • Accuracy        : {result['accuracy']:.4f}")
-    print(f"  • AUC             : {result['auc']:.4f}")
-    print(f"  • Precision       : {result['precision']:.4f}")
-    print(f"  • Recall          : {result['recall']:.4f}")
-    print(f"  • F1-Score        : {result['f1']:.4f}")
+    # Report results
+    print(f"\n[MIA RESULTS] {name}")
+    print("-" * 60)
 
-    # Optional: save ROC plot
-    fpr, tpr = result["roc"]
-    plt.figure()
-    plt.plot(fpr, tpr, label=f"{name} (AUC={result['auc']:.2f})")
-    plt.xlabel("FPR")
-    plt.ylabel("TPR")
-    plt.title(f"ROC Curve - {name}")
+    for attack_type, result in results.items():
+        if result is not None:
+            print(f"{result['attack_name']:10} | "
+                  f"Acc: {result['accuracy']:.4f} | "
+                  f"AUC: {result['auc']:.4f} | "
+                  f"F1: {result['f1']:.4f} | "
+                  f"Prec: {result['precision']:.4f} | "
+                  f"Rec: {result['recall']:.4f}")
+        else:
+            print(f"{attack_type:10} | FAILED")
+
+    # Plot ROC curves
+    plt.figure(figsize=(10, 6))
+    for attack_type, result in results.items():
+        if result is not None:
+            fpr, tpr = result["roc"]
+            plt.plot(fpr, tpr, label=f"{result['attack_name']} (AUC={result['auc']:.3f})")
+
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title(f"MIA ROC Curves - {name}")
     plt.legend()
-    plt.grid()
+    plt.grid(True)
+    plt.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+
     os.makedirs("attack_results", exist_ok=True)
-    plt.savefig(f"attack_results/roc_{name}.png")
+    plt.savefig(f"attack_results/comprehensive_roc_{name.replace('.', '_')}.png", dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"[DEBUG] Saved ROC curve to attack_results/roc_{name}.png")
+
+    return results
 
 
+# Example usage with better data validation
 if __name__ == "__main__":
-    print("[DEBUG] Loading member and non-member data...")
+    print("[DEBUG] Loading attack data...")
+
+    # Load the data
     X_member = np.load("attack_data/X_member.npy")
-    X_nonmember = np.load("attack_data/X_nonmember.npy")
-    print(f"[DEBUG] Loaded X_member shape: {X_member.shape}")
-    print(f"[DEBUG] Loaded X_nonmember shape: {X_nonmember.shape}")
+    X_nonmember = np.load("attack_data/X_nonmember_clean.npy")  # Use cleaned data
 
-    # Attack each FL client
-    for i in range(1, 6):
-        model_path = f"../dp1/results/fl_dp_model_client_{i}.h5"
-        run_and_report(model_path, X_member, X_nonmember, framework="keras")
+    # Try to load labels if available
+    try:
+        y_member = np.load("attack_data/y_member.npy")
+        y_nonmember = np.load("attack_data/y_nonmember.npy")
+        print("[DEBUG] Labels loaded successfully")
+    except:
+        print("[DEBUG] No labels found, will skip loss-based attack")
+        y_member = None
+        y_nonmember = None
 
-    # Attack the aggregated keras model (if applicable)
-    aggregated_model_path = "../dp1/results/fl_dp_global_model_aggregated.h5"
-    if os.path.exists(aggregated_model_path):
-        run_and_report(aggregated_model_path, X_member, X_nonmember, framework="keras")
-    else:
-        print(f"[DEBUG] Aggregated Keras model not found at: {aggregated_model_path}")
+    # Validate data first
+    if not validate_data_split(X_member, X_nonmember, y_member, y_nonmember):
+        print("[ERROR] Data validation failed! Please check your data split.")
+        exit(1)
 
-    # Attack the naive full-data model
-    naive_model_path = "../dp1/results/naive_model.pkl"
-    if os.path.exists(naive_model_path):
-        run_and_report(naive_model_path, X_member, X_nonmember, framework="sklearn")
-    else:
-        print(f"[DEBUG] Naive model not found at: {naive_model_path}")
+    # Run comprehensive attacks
+    models_to_test = [
+        ("../dp1/results/fl_dp_model_client_1.h5", "keras"),
+        ("../dp1/results/fl_dp_model_client_2.h5", "keras"),
+        ("../dp1/results/fl_dp_model_client_3.h5", "keras"),
+        ("../dp1/results/fl_dp_model_client_4.h5", "keras"),
+        ("../dp1/results/fl_dp_model_client_5.h5", "keras"),
+        ("../dp1/results/fl_dp_global_model_aggregated.h5", "keras"),
+        ("../dp1/results/naive_logistic_model.pkl", "sklearn"),
+    ]
+
+    all_results = {}
+
+    for model_path, framework in models_to_test:
+        if os.path.exists(model_path):
+            results = run_comprehensive_attack(
+                model_path, X_member, X_nonmember, y_member, y_nonmember, framework
+            )
+            all_results[model_path] = results
+        else:
+            print(f"[DEBUG] Model not found: {model_path}")
+
+    # Summary comparison
+    print(f"\n{'=' * 80}")
+    print("SUMMARY COMPARISON")
+    print(f"{'=' * 80}")
+    print(f"{'Model':<30} | {'Best Attack':<12} | {'Accuracy':<8} | {'AUC':<8}")
+    print("-" * 80)
+
+    for model_path, results in all_results.items():
+        if results:
+            name = os.path.basename(model_path)
+            best_attack = None
+            best_acc = 0
+
+            for attack_type, result in results.items():
+                if result is not None and result['accuracy'] > best_acc:
+                    best_acc = result['accuracy']
+                    best_attack = result['attack_name']
+
+            if best_attack:
+                best_result = results[best_attack.lower()]
+                print(f"{name:<30} | {best_attack:<12} | {best_result['accuracy']:<8.4f} | {best_result['auc']:<8.4f}")
+            else:
+                print(f"{name:<30} | {'FAILED':<12} | {'N/A':<8} | {'N/A':<8}")
+
+

@@ -1,0 +1,28 @@
+"C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\.venv\Scripts\python.exe" "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\inversion_attack.py"
+
+============================================================
+[ATTACK] Running Inversion Attack on: Naive RF
+============================================================
+[RESULT] MSE for Naive RF: 0.0001
+[SAVED] Inversion plot saved to: results/inversion_attack\inversion_naive_rf.png
+
+============================================================
+[ATTACK] Running Inversion Attack on: Federated
+============================================================
+[RESULT] MSE for Federated: 0.0992
+[SAVED] Inversion plot saved to: results/inversion_attack\inversion_federated.png
+
+============================================================
+[ATTACK] Running Inversion Attack on: Federated + DP
+============================================================
+[RESULT] MSE for Federated + DP: 0.0992
+[SAVED] Inversion plot saved to: results/inversion_attack\inversion_federated_+_dp.png
+
+============================================================
+[SUMMARY] Inversion Attack MSE per Model
+============================================================
+Naive RF             | MSE: 0.0001
+Federated            | MSE: 0.0992
+Federated + DP       | MSE: 0.0992
+
+Process finished with exit code 0

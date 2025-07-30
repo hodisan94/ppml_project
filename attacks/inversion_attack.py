@@ -1,23 +1,77 @@
-import tensorflow as tf
+import os
 import numpy as np
+from sklearn.metrics import mean_squared_error
+from joblib import load
+import matplotlib.pyplot as plt
 
-def run_inversion(model_path, input_dim, target_label=1):
-    model = tf.keras.models.load_model(model_path)
+def run_inversion_attack(model_path, X_samples, y_true, model_name, output_dir):
+    print(f"\n{'='*60}")
+    print(f"[ATTACK] Running Inversion Attack on: {model_name}")
+    print(f"{'='*60}")
 
-    target_output = tf.constant([[0., 1.]] if target_label == 1 else [[1., 0.]], dtype=tf.float32)
-    reconstructed_input = tf.Variable(tf.random.normal((1, input_dim)))
+    model = load(model_path)
 
-    optimizer = tf.keras.optimizers.Adam(0.1)
+    try:
+        y_pred = model.predict(X_samples)
+    except:
+        y_pred = model.predict_proba(X_samples)
+        y_pred = np.argmax(y_pred, axis=1)
 
-    for i in range(500):
-        with tf.GradientTape() as tape:
-            pred = model(reconstructed_input)
-            loss = tf.reduce_mean(tf.square(pred - target_output))
-        grads = tape.gradient(loss, [reconstructed_input])
-        optimizer.apply_gradients(zip(grads, [reconstructed_input]))
+    mse = mean_squared_error(y_true, y_pred)
+    print(f"[RESULT] MSE for {model_name}: {mse:.4f}")
 
-    print(f"[INVERSION] Done - saved to results/reconstructed_input.npy")
-    np.save("results/reconstructed_input.npy", reconstructed_input.numpy())
+    os.makedirs(output_dir, exist_ok=True)
+    plot_path = os.path.join(output_dir, f"inversion_{model_name.replace(' ', '_').lower()}.png")
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(y_true[:100], label='True Labels', linestyle='--')
+    plt.plot(y_pred[:100], label='Predicted Labels', linestyle='-')
+    plt.title(f'Model Inversion – {model_name}\nMSE={mse:.4f}')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Label')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(plot_path)
+    print(f"[SAVED] Inversion plot saved to: {plot_path}")
+    plt.close()
+
+    return mse
+
+
+def main():
+    output_dir = "results/inversion_attack"
+    models = {
+        "Naive RF": {
+            "model": "../models/RF/Naive/rf_naive_model.pkl",
+            "X": "../models/RF/Naive/X_member.npy",
+            "y": "../models/RF/Naive/y_member.npy"
+        },
+        "Federated": {
+            "model": "../models/RF/FL/federated_model.pkl",
+            "X": "../models/RF/FL/federated_X_train.npy",
+            "y": "../models/RF/FL/federated_y_train.npy"
+        },
+        "Federated + DP": {
+            "model": "../models/RF/FL+DP/federated_model_dp.pkl",
+            "X": "../models/RF/FL+DP/federated_X_train.npy",
+            "y": "../models/RF/FL+DP/federated_y_train.npy"
+        }
+    }
+
+    all_mse = {}
+    for model_name, paths in models.items():
+        X = np.load(paths["X"])
+        y = np.load(paths["y"])
+        mse = run_inversion_attack(paths["model"], X, y, model_name, output_dir)
+        all_mse[model_name] = mse
+
+    print(f"\n{'='*60}")
+    print("[SUMMARY] Inversion Attack MSE per Model")
+    print(f"{'='*60}")
+    for model_name, mse in all_mse.items():
+        print(f"{model_name:20} | MSE: {mse:.4f}")
+
 
 if __name__ == "__main__":
-    run_inversion("results/fl_dp_model.h5", input_dim=19)
+    main()

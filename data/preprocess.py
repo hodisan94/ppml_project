@@ -4,7 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 # Load the raw dataset
-df = pd.read_csv("data/raw/healthcare_dataset.csv")
+df = pd.read_csv("new_processing/data/raw/healthcare_dataset.csv")
 
 # Drop irrelevant columns
 df = df.drop(columns=["Name", "Doctor", "Room Number"])
@@ -94,7 +94,7 @@ num_clients = 5
 shard_size = len(df) // num_clients
 
 # Make sure folder exists
-client_dir = "data/clients"
+client_dir = "new_processing/clients"
 os.makedirs(client_dir, exist_ok=True)
 
 # Split and save
@@ -107,7 +107,7 @@ for i in range(num_clients):
     print(f"Saved {client_path} with shape {client_df.shape}")
 
 # Save the full cleaned dataset
-os.makedirs("data/processed", exist_ok=True)
+os.makedirs("new_processing/data/processed", exist_ok=True)
 df.to_csv("data/processed/full_preprocessed.csv", index=False)
 print("Saved full preprocessed dataset")
 

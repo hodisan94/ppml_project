@@ -135,7 +135,7 @@ def main():
         # Step 2: Start server
         print("[MAIN] Starting Flower server...")
         server_process = subprocess.Popen(
-            [PYTHON, "flower/server.py"],
+            [PYTHON, "fl/server.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -158,7 +158,7 @@ def main():
             print(f"[MAIN] Starting client {client_id}...")
             try:
                 proc = subprocess.Popen(
-                    [PYTHON, "flower/client.py", str(client_id)],
+                    [PYTHON, "fl/client.py", str(client_id)],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,

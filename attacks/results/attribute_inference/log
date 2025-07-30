@@ -1,0 +1,77 @@
+"C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\.venv\Scripts\python.exe" "C:\Users\user\OneDrive - post.bgu.ac.il\Documents\GitHub\ppml_project\attacks\aia.py"
+
+============================================================
+[ATTACK] Running Attribute Inference Attack on: Naive RF
+============================================================
+[DEBUG] X shape before removing sensitive column: (43972, 20)
+[DEBUG] First 5 values of sensitive attribute (ground truth): [0. 0. 1. 0. 0.]
+[DEBUG] Class distribution: {0.0: 21961, 1.0: 22011}
+[DEBUG] Baseline accuracy (majority class): 0.5006
+[DEBUG] Auxiliary data shape: (21986, 20)
+[DEBUG] Target data shape: (21986, 20)
+[DEBUG] Attack data shape (without sensitive attr): (21986, 19)
+[DEBUG] Attack features shape (auxiliary): (21986, 21)
+[DEBUG] Attack features shape (target): (21986, 21)
+[RESULT] AIA Accuracy for Naive RF: 0.5459
+[RESULT] Improvement over baseline: 0.0454
+[DEBUG] Top 5 most important features for attack:
+  1. feat_1: 0.3001
+  2. feat_0: 0.2320
+  3. confidence: 0.2001
+  4. feat_18: 0.0206
+  5. feat_16: 0.0180
+[SAVED] AIA plot saved to: results/attribute_inference\aia_naive_rf.png
+
+============================================================
+[ATTACK] Running Attribute Inference Attack on: Federated
+============================================================
+[DEBUG] X shape before removing sensitive column: (44316, 20)
+[DEBUG] First 5 values of sensitive attribute (ground truth): [1. 0. 1. 1. 1.]
+[DEBUG] Class distribution: {0.0: 22160, 1.0: 22156}
+[DEBUG] Baseline accuracy (majority class): 0.5000
+[DEBUG] Auxiliary data shape: (22158, 20)
+[DEBUG] Target data shape: (22158, 20)
+[DEBUG] Attack data shape (without sensitive attr): (22158, 19)
+[DEBUG] Attack features shape (auxiliary): (22158, 21)
+[DEBUG] Attack features shape (target): (22158, 21)
+[RESULT] AIA Accuracy for Federated: 0.6039
+[RESULT] Improvement over baseline: 0.1039
+[DEBUG] Top 5 most important features for attack:
+  1. feat_1: 0.2851
+  2. confidence: 0.2353
+  3. feat_0: 0.2286
+  4. feat_18: 0.0220
+  5. feat_17: 0.0192
+[SAVED] AIA plot saved to: results/attribute_inference\aia_federated.png
+
+============================================================
+[ATTACK] Running Attribute Inference Attack on: Federated + DP
+============================================================
+[DEBUG] X shape before removing sensitive column: (44316, 20)
+[DEBUG] First 5 values of sensitive attribute (ground truth): [ 1.30034858 -0.21976672  1.48558497 -0.89573531  0.64980378]
+[INFO] Converted sensitive attribute to binary using median threshold: 0.4992
+[DEBUG] Class distribution: {0: 22158, 1: 22158}
+[DEBUG] Baseline accuracy (majority class): 0.5000
+[DEBUG] Auxiliary data shape: (22158, 20)
+[DEBUG] Target data shape: (22158, 20)
+[DEBUG] Attack data shape (without sensitive attr): (22158, 19)
+[DEBUG] Attack features shape (auxiliary): (22158, 21)
+[DEBUG] Attack features shape (target): (22158, 21)
+[RESULT] AIA Accuracy for Federated + DP: 0.4984
+[RESULT] Improvement over baseline: -0.0016
+[DEBUG] Top 5 most important features for attack:
+  1. feat_6: 0.0562
+  2. feat_4: 0.0553
+  3. feat_3: 0.0542
+  4. feat_10: 0.0536
+  5. feat_16: 0.0529
+[SAVED] AIA plot saved to: results/attribute_inference\aia_federated_+_dp.png
+
+============================================================
+[SUMMARY] Attribute Inference Attack Results
+============================================================
+Naive RF             | Accuracy: 0.5459 | Improvement: 0.0454
+Federated            | Accuracy: 0.6039 | Improvement: 0.1039
+Federated + DP       | Accuracy: 0.4984 | Improvement: -0.0016
+
+Process finished with exit code 0

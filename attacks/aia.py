@@ -143,16 +143,16 @@ def main():
     sensitive_col = 1  # Gender
     models = {
         "Naive RF": {
-            "model": "../models/RF/Naive/rf_naive_model.pkl",
-            "X": "../models/RF/Naive/X_member.npy"
+            "model": "models/RF/Naive/rf_naive_model.pkl",
+            "X": "models/RF/Naive/X_member.npy"
         },
         "Federated": {
-            "model": "../models/RF/FL/federated_model.pkl",
-            "X": "../models/RF/FL/federated_X_train.npy"
+            "model": "models/RF/FL/federated_model.pkl",
+            "X": "models/RF/FL/federated_X_train.npy"
         },
         "Federated + DP": {
-            "model": "../models/RF/FL+DP/federated_model_dp.pkl",
-            "X": "../models/RF/FL+DP/federated_X_train.npy"
+            "model": "models/RF/FL+DP/federated_model_dp.pkl",
+            "X": "models/RF/FL+DP/federated_X_train.npy"
         }
     }
 

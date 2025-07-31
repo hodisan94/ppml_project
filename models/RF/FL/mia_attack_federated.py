@@ -1,9 +1,13 @@
 # mia_attack_federated.py
 import numpy as np
 import sys
+import os
+import json
+import matplotlib.pyplot as plt
 
-# Import the MIA attack functions from your existing code
-from models.RF.Naive.mia_attack_rf_naive import run_comprehensive_attack
+# Import the shared MIA utility
+sys.path.append('../../../')
+from utils.mia_utils import run_comprehensive_attack
 
 def main():
     print("=" * 60)
@@ -39,7 +43,6 @@ def main():
                     print(f"{attack_type:10} | AUC: {result['auc']:.4f} | Acc: {result['accuracy']:.4f}")
 
         # Save results
-        import json
         if results:
             summary = {}
             for attack_type, result in results.items():
@@ -52,10 +55,11 @@ def main():
                         'f1': result['f1']
                     }
 
-            with open('attack_results/federated_mia_results.json', 'w') as f:
+            os.makedirs("attack_results", exist_ok=True)
+            with open('attack_results/federated_mia_results.json', 'w', encoding='utf-8') as f:
                 json.dump(summary, f, indent=2)
 
-            print(f"\n[INFO] Results saved to federated+dp_mia_results.json")
+            print(f"\n[INFO] Results saved to attack_results/federated_mia_results.json")
 
     except FileNotFoundError as e:
         print(f"[ERROR] Required files not found: {e}")

@@ -1,0 +1,101 @@
+{
+  "experiment_info": {
+    "timestamp": "2025-07-31T19:44:24.750826",
+    "pipeline_version": "1.0",
+    "models_trained": [
+      "naive",
+      "federated",
+      "federated_dp"
+    ],
+    "attacks_executed": [
+      "mia",
+      "inversion",
+      "aia"
+    ]
+  },
+  "models": {
+    "naive": {
+      "accuracy": 0.8923958522830635,
+      "auc": 0.5701369449591209,
+      "n_estimators": 100
+    },
+    "federated": {
+      "accuracy": 0.9007312614259598,
+      "auc": 0.5705417418434372,
+      "n_clients": 5,
+      "n_estimators": 100,
+      "trees_per_client": 20
+    },
+    "federated_dp": {
+      "accuracy": 0.9007488947036001,
+      "auc": 0.4833471902233798,
+      "n_clients": 5,
+      "n_estimators": 100,
+      "use_dp": true,
+      "epsilon": 1.0
+    }
+  },
+  "attacks": {
+    "naive": {
+      "mia": {
+        "confidence": {
+          "auc": 0.6354179810639415,
+          "accuracy": 0.8016774005749009,
+          "precision": 0.8018363360896629,
+          "recall": 0.9989766214864004,
+          "f1": 0.8896157156599666
+        },
+        "entropy": {
+          "auc": 0.6354179810639415,
+          "accuracy": 0.8016774005749009,
+          "precision": 0.8022225065340961,
+          "recall": 0.9981806604202674,
+          "f1": 0.8895374170339971
+        },
+        "loss": {
+          "auc": 0.6669191585046405,
+          "accuracy": 0.82165338572936,
+          "precision": 0.8177270275799222,
+          "recall": 0.9999545165105067,
+          "f1": 0.8997063728348832
+        }
+      }
+    },
+    "federated": {
+      "mia": {
+        "confidence": {
+          "auc": 0.5247391820221501,
+          "accuracy": 0.8019943535543651,
+          "precision": 0.8020088679757488,
+          "recall": 0.9999774347865331,
+          "f1": 0.8901186088318889
+        },
+        "entropy": {
+          "auc": 0.5247391820221501,
+          "accuracy": 0.8019943535543651,
+          "precision": 0.8020088679757488,
+          "recall": 0.9999774347865331,
+          "f1": 0.8901186088318889
+        }
+      }
+    },
+    "federated_dp": {
+      "mia": {
+        "confidence": {
+          "auc": 0.525816336859468,
+          "accuracy": 0.7999241863571545,
+          "precision": 0.7999386259431749,
+          "recall": 0.9999774347865331,
+          "f1": 0.8888420883727461
+        },
+        "entropy": {
+          "auc": 0.525816336859468,
+          "accuracy": 0.7999241863571545,
+          "precision": 0.7999386259431749,
+          "recall": 0.9999774347865331,
+          "f1": 0.8888420883727461
+        }
+      }
+    }
+  }
+}

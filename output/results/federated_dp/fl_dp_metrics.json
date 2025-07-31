@@ -1,0 +1,8 @@
+{
+  "accuracy": 0.9007488947036001,
+  "auc": 0.4833471902233798,
+  "n_clients": 5,
+  "n_estimators": 100,
+  "use_dp": true,
+  "epsilon": 1.0
+}

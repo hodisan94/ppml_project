@@ -6,6 +6,8 @@ from sklearn.metrics import (
 )
 from keras.models import load_model
 import joblib
+import json
+import sys
 
 
 def get_loss_scores(model, X, y, framework="keras"):
@@ -260,7 +262,6 @@ def run_comprehensive_attack(model_path, X_member, X_nonmember, y_member=None, y
     }
 
     # Save summary to JSON
-    import json
     os.makedirs("attack_results", exist_ok=True)
     with open(f"attack_results/comprehensive_mia_results_{name.replace('.', '_')}1.json", 'w') as f:
         json.dump(summary, f, indent=2)
@@ -286,19 +287,65 @@ def run_comprehensive_attack(model_path, X_member, X_nonmember, y_member=None, y
     return results
 
 
+def main():
+    print("=" * 60)
+    print("MIA ATTACK ON NAIVE RF MODEL")
+    print("=" * 60)
+
+    try:
+        # Load data
+        X_member = np.load("X_member.npy")
+        y_member = np.load("y_member.npy")
+        X_nonmember = np.load("X_nonmember.npy")
+        y_nonmember = np.load("y_nonmember.npy")
+
+        print(f"[INFO] Loaded naive model data:")
+        print(f"[INFO] Member data: {X_member.shape}")
+        print(f"[INFO] Non-member data: {X_nonmember.shape}")
+
+        # Run comprehensive attack
+        results = run_comprehensive_attack(
+            model_path="rf_naive_model.pkl",
+            X_member=X_member,
+            X_nonmember=X_nonmember,
+            y_member=y_member,
+            y_nonmember=y_nonmember,
+            framework="sklearn"
+        )
+
+        if results:
+            print(f"\n[SUMMARY] Naive RF Model MIA Results:")
+            print("-" * 50)
+            for attack_type, result in results.items():
+                if result is not None:
+                    print(f"{attack_type:10} | AUC: {result['auc']:.4f} | Acc: {result['accuracy']:.4f}")
+
+            # Save results
+            summary = {}
+            for attack_type, result in results.items():
+                if result is not None:
+                    summary[attack_type] = {
+                        'auc': result['auc'],
+                        'accuracy': result['accuracy'],
+                        'precision': result['precision'],
+                        'recall': result['recall'],
+                        'f1': result['f1']
+                    }
+
+            os.makedirs("attack_results", exist_ok=True)
+            with open('attack_results/naive_mia_results.json', 'w', encoding='utf-8') as f:
+                json.dump(summary, f, indent=2)
+
+            print(f"\n[INFO] Results saved to attack_results/naive_mia_results.json")
+
+    except FileNotFoundError as e:
+        print(f"[ERROR] Required files not found: {e}")
+        print("[ERROR] Please run train_rf_and_save.py first to generate the data files")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[ERROR] An error occurred: {e}")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    print("[DEBUG] Running MIA on RF naive model")
-
-    X_member = np.load("X_member.npy")
-    X_nonmember = np.load("X_nonmember.npy")
-    y_member = np.load("y_member.npy")
-    y_nonmember = np.load("y_nonmember.npy")
-
-    run_comprehensive_attack(
-        model_path="rf_naive_model.pkl",
-        X_member=X_member,
-        X_nonmember=X_nonmember,
-        y_member=y_member,
-        y_nonmember=y_nonmember,
-        framework="sklearn"
-    )
+    main()

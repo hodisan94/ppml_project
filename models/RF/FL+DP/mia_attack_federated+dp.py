@@ -4,7 +4,10 @@ import sys
 import os
 import json
 import matplotlib.pyplot as plt
-from models.RF.Naive.mia_attack_rf_naive import run_comprehensive_attack
+
+# Import the shared MIA utility
+sys.path.append('../../../')
+from utils.mia_utils import run_comprehensive_attack
 
 def add_laplace_noise(X, epsilon=0.5, sensitivity=1.0):
     scale = sensitivity / epsilon
@@ -14,7 +17,7 @@ def add_laplace_noise(X, epsilon=0.5, sensitivity=1.0):
 
 def main():
     print("=" * 60)
-    print("MIA ATTACK ON FEDERATED MODEL")
+    print("MIA ATTACK ON FEDERATED + DP MODEL")
     print("=" * 60)
 
     try:
@@ -30,7 +33,7 @@ def main():
         use_dp = True
         epsilon = 0.5
         if use_dp:
-            print(f"[INFO] Applying DP noise to X_test for symmetry (ε={epsilon})")
+            print(f"[INFO] Applying DP noise to X_test for symmetry (epsilon={epsilon})")
             X_test = add_laplace_noise(X_test, epsilon=epsilon)
 
         results = run_comprehensive_attack(
@@ -60,26 +63,10 @@ def main():
             }
 
             os.makedirs("attack_results", exist_ok=True)
-            with open('federated_mia_results.json', 'w') as f:
+            with open('attack_results/federated_mia_results.json', 'w', encoding='utf-8') as f:
                 json.dump(summary, f, indent=2)
 
-            # Save ROC plot
-            roc_path = "attack_results/comprehensive_roc_federated_model_dp_pkl.png"
-            if 'roc_data' in results:
-                fpr = results['roc_data']['fpr']
-                tpr = results['roc_data']['tpr']
-                label = results['roc_data']['label']
-                plt.figure()
-                for l, f, t in zip(label, fpr, tpr):
-                    plt.plot(f, t, label=l)
-                plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-                plt.xlabel('False Positive Rate')
-                plt.ylabel('True Positive Rate')
-                plt.title('MIA ROC Curves - federated_model_dp.pkl')
-                plt.legend()
-                plt.grid(True)
-                plt.savefig(roc_path)
-                print(f"[INFO] ROC curve saved to {roc_path}")
+            print(f"\n[INFO] Results saved to attack_results/federated_mia_results.json")
 
     except FileNotFoundError as e:
         print(f"[ERROR] Required files not found: {e}")
@@ -87,6 +74,7 @@ def main():
     except Exception as e:
         print(f"[ERROR] An error occurred: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

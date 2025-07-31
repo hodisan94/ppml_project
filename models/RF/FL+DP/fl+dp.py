@@ -25,7 +25,7 @@ def load_client_data(client_files):
             continue
         df = pd.read_csv(file_path)
         df_nodup = df.drop_duplicates()
-        print(f"[INFO] {client_id}: {len(df)} → {len(df_nodup)} samples after deduplication")
+        print(f"[INFO] {client_id}: {len(df)} -> {len(df_nodup)} samples after deduplication")
         X = df_nodup.drop("Readmitted", axis=1).values
         y = df_nodup["Readmitted"].values
         print(f"[DEBUG] {client_id} feature shape: {X.shape}, label shape: {y.shape}")
@@ -58,7 +58,7 @@ def federated_training_with_dp(clients_data, n_estimators=100, test_size=0.2,
 
         print(f"[DEBUG] {client_id} - Train shape: {X_train.shape}, Test shape: {X_test.shape}")
         if use_dp:
-            print(f"[DP] Adding noise to {client_id} (ε={epsilon})")
+            print(f"[DP] Adding noise to {client_id} (epsilon={epsilon})")
             X_train = add_laplace_noise(X_train, epsilon=epsilon)
 
         all_X_train.append(X_train)

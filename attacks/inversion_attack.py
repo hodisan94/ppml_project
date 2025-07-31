@@ -43,34 +43,55 @@ def main():
     output_dir = "results/inversion_attack"
     models = {
         "Naive RF": {
-            "model": "../models/RF/Naive/rf_naive_model.pkl",
-            "X": "../models/RF/Naive/X_member.npy",
-            "y": "../models/RF/Naive/y_member.npy"
+            "model": "models/RF/Naive/rf_naive_model.pkl",
+            "X": "models/RF/Naive/X_member.npy",
+            "y": "models/RF/Naive/y_member.npy"
         },
         "Federated": {
-            "model": "../models/RF/FL/federated_model.pkl",
-            "X": "../models/RF/FL/federated_X_train.npy",
-            "y": "../models/RF/FL/federated_y_train.npy"
+            "model": "models/RF/FL/federated_model.pkl",
+            "X": "models/RF/FL/federated_X_train.npy",
+            "y": "models/RF/FL/federated_y_train.npy"
         },
         "Federated + DP": {
-            "model": "../models/RF/FL+DP/federated_model_dp.pkl",
-            "X": "../models/RF/FL+DP/federated_X_train.npy",
-            "y": "../models/RF/FL+DP/federated_y_train.npy"
+            "model": "models/RF/FL+DP/federated_model_dp.pkl",
+            "X": "models/RF/FL+DP/federated_X_train.npy",
+            "y": "models/RF/FL+DP/federated_y_train.npy"
         }
     }
 
-    all_mse = {}
+    results = {}
+    
     for model_name, paths in models.items():
-        X = np.load(paths["X"])
-        y = np.load(paths["y"])
-        mse = run_inversion_attack(paths["model"], X, y, model_name, output_dir)
-        all_mse[model_name] = mse
+        try:
+            print(f"\n[INFO] Processing {model_name}...")
+            
+            # Check if files exist
+            for path_type, path in paths.items():
+                if not os.path.exists(path):
+                    print(f"[ERROR] {path_type} file not found: {path}")
+                    continue
+            
+            X = np.load(paths["X"])
+            y = np.load(paths["y"])
+            
+            print(f"[INFO] Loaded data: X={X.shape}, y={y.shape}")
+            
+            mse = run_inversion_attack(paths["model"], X, y, model_name, output_dir)
+            results[model_name] = mse
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to process {model_name}: {e}")
+            results[model_name] = None
 
+    # Print summary
     print(f"\n{'='*60}")
-    print("[SUMMARY] Inversion Attack MSE per Model")
+    print("INVERSION ATTACK SUMMARY")
     print(f"{'='*60}")
-    for model_name, mse in all_mse.items():
-        print(f"{model_name:20} | MSE: {mse:.4f}")
+    for model_name, mse in results.items():
+        if mse is not None:
+            print(f"{model_name}: MSE = {mse:.4f}")
+        else:
+            print(f"{model_name}: FAILED")
 
 
 if __name__ == "__main__":

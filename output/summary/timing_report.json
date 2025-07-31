@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-07-31T19:44:24.752826",
+  "total_time": 96.81283521652222,
+  "steps": {
+    "Naive RF training": 9.669491291046143,
+    "Federated RF training": 14.405268669128418,
+    "Federated RF + DP training": 14.024778604507446,
+    "MIA attack on naive model": 15.103662729263306,
+    "MIA attack on federated model": 4.154536485671997,
+    "MIA attack on federated + DP model": 3.824995994567871,
+    "Model inversion attacks": 5.1308135986328125,
+    "Attribute inference attacks": 30.499287843704224
+  }
+}

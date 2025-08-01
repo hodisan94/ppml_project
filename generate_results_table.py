@@ -42,14 +42,14 @@ def load_attack_results():
                 elif model_type == "federated":
                     filename = "inversion_results_federated.json"
                 else:  # federated_dp
-                    filename = "inversion_results_federated_dp.json"
+                    filename = "inversion_results_federated_+_dp.json"  # Fixed: added +
             elif attack_type == "aia":
                 if model_type == "naive":
                     filename = "aia_results_naive_rf.json"
                 elif model_type == "federated":
                     filename = "aia_results_federated.json"
                 else:  # federated_dp
-                    filename = "aia_results_federated_dp.json"
+                    filename = "aia_results_federated_+_dp.json"  # Fixed: added +
             
             file_path = os.path.join(model_dir, filename)
             
@@ -301,7 +301,22 @@ def generate_visualizations(df, pivot_df):
         # Format the data for display
         accuracy_display = item['Accuracy'] if item['Accuracy'] != 'N/A' else '-'
         auc_display = item['AUC'] if item['AUC'] != 'N/A' else '-'
-        f1_display = item['F1'] if item['F1'] != 'N/A' else '-'
+        
+        # Separate F1 and MSE values
+        f1_display = '-'
+        mse_display = '-'
+        
+        f1_value = item['F1']
+        if f1_value != 'N/A':
+            if 'MSE:' in str(f1_value):
+                # Extract MSE value
+                mse_display = str(f1_value).replace('MSE: ', '')
+            elif 'Improvement:' in str(f1_value):
+                # Skip improvement values for F1 column
+                f1_display = '-'
+            else:
+                # Regular F1 score
+                f1_display = str(f1_value)
         
         table_data.append([
             item['Model'],
@@ -309,14 +324,15 @@ def generate_visualizations(df, pivot_df):
             item['ASR'],
             accuracy_display,
             auc_display,
-            f1_display
+            f1_display,
+            mse_display
         ])
     
     table = ax.table(cellText=table_data,
-                    colLabels=['Model', 'Attack', 'ASR', 'Accuracy', 'AUC', 'F1/MSE'],
+                    colLabels=['Model', 'Attack', 'ASR', 'Accuracy', 'AUC', 'F1', 'MSE'],
                     cellLoc='center',
                     loc='center',
-                    colWidths=[0.2, 0.2, 0.15, 0.15, 0.15, 0.15])
+                    colWidths=[0.15, 0.15, 0.12, 0.12, 0.12, 0.12, 0.12])
     
     table.auto_set_font_size(False)
     table.set_fontsize(10)
@@ -324,7 +340,7 @@ def generate_visualizations(df, pivot_df):
     
     # Style the table
     for i in range(len(table_data) + 1):
-        for j in range(6):
+        for j in range(7):  # Updated for 7 columns
             cell = table[(i, j)]
             if i == 0:  # Header row
                 cell.set_facecolor('#4CAF50')
@@ -434,17 +450,32 @@ def print_results_table(df):
                 })
     
     # Print cleaned table
-    print(f"{'Model':<20} {'Attack':<20} {'ASR':<10} {'Accuracy':<10} {'AUC':<10} {'F1/MSE':<15}")
-    print("-"*100)
+    print(f"{'Model':<20} {'Attack':<20} {'ASR':<10} {'Accuracy':<10} {'AUC':<10} {'F1':<10} {'MSE':<10}")
+    print("-"*110)
     
     for item in clean_data:
         # Format the data for display
         accuracy_display = item['Accuracy'] if item['Accuracy'] != 'N/A' else '-'
         auc_display = item['AUC'] if item['AUC'] != 'N/A' else '-'
-        f1_display = item['F1'] if item['F1'] != 'N/A' else '-'
+        
+        # Separate F1 and MSE values
+        f1_display = '-'
+        mse_display = '-'
+        
+        f1_value = item['F1']
+        if f1_value != 'N/A':
+            if 'MSE:' in str(f1_value):
+                # Extract MSE value
+                mse_display = str(f1_value).replace('MSE: ', '')
+            elif 'Improvement:' in str(f1_value):
+                # Skip improvement values for F1 column
+                f1_display = '-'
+            else:
+                # Regular F1 score
+                f1_display = str(f1_value)
         
         print(f"{item['Model']:<20} {item['Attack']:<20} {item['ASR']:<10} "
-              f"{accuracy_display:<10} {auc_display:<10} {f1_display:<15}")
+              f"{accuracy_display:<10} {auc_display:<10} {f1_display:<10} {mse_display:<10}")
     
     print("\n" + "="*100)
     print("SUMMARY:")

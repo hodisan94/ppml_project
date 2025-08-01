@@ -6,6 +6,7 @@ from sklearn.metrics import (
 )
 from keras.models import load_model
 import joblib
+import json
 
 
 def get_loss_scores(model, X, y, framework="keras"):
@@ -211,36 +212,36 @@ def validate_data_split(X_member, X_nonmember, y_member=None, y_nonmember=None):
 
 
 def run_comprehensive_attack(model_path, X_member, X_nonmember, y_member=None, y_nonmember=None, framework="keras"):
-    """Run comprehensive MIA attack with multiple strategies"""
-    name = os.path.basename(model_path)
-    print(f"\n{'=' * 50}")
-    print(f"[DEBUG] Running comprehensive MIA on: {name}")
-    print(f"{'=' * 50}")
-
-    # Validate data
-    if not validate_data_split(X_member, X_nonmember, y_member, y_nonmember):
-        print("[ERROR] Data validation failed!")
+    """Run comprehensive MIA attack on a single model"""
+    print(f"\n[DEBUG] Running comprehensive MIA on: {model_path}")
+    
+    # Load model
+    try:
+        if framework == "keras":
+            model = load_model(model_path)
+        elif framework == "sklearn":
+            model = joblib.load(model_path)
+        else:
+            raise ValueError(f"Unknown framework: {framework}")
+    except Exception as e:
+        print(f"[ERROR] Failed to load model {model_path}: {e}")
         return None
 
-    # Load model
-    print(f"[DEBUG] Loading model: {model_path}")
-    if framework == "keras":
-        model = load_model(model_path, compile=False)
-    elif framework == "sklearn":
-        model = joblib.load(model_path)
-    else:
-        raise ValueError("Unknown framework")
-
-    # Run comprehensive attack
+    # Run comprehensive evaluation
     results = evaluate_mia_comprehensive(model, X_member, X_nonmember, y_member, y_nonmember, framework)
+    
+    if not results:
+        print(f"[ERROR] No results obtained for {model_path}")
+        return None
 
-    # Report results
-    print(f"\n[MIA RESULTS] {name}")
-    print("-" * 60)
-
+    # Print results
+    name = os.path.basename(model_path)
+    print(f"\n[RESULTS] MIA Results for {name}:")
+    print("-" * 50)
+    
     for attack_type, result in results.items():
         if result is not None:
-            print(f"{result['attack_name']:10} | "
+            print(f"{attack_type:10} | "
                   f"Acc: {result['accuracy']:.4f} | "
                   f"AUC: {result['auc']:.4f} | "
                   f"F1: {result['f1']:.4f} | "
@@ -263,8 +264,18 @@ def run_comprehensive_attack(model_path, X_member, X_nonmember, y_member=None, y
     plt.grid(True)
     plt.plot([0, 1], [0, 1], 'k--', alpha=0.5)
 
-    os.makedirs("attack_results", exist_ok=True)
-    plt.savefig(f"attack_results/comprehensive_roc_{name.replace('.', '_')}.png", dpi=300, bbox_inches='tight')
+    # Determine output directory based on model type
+    if "naive" in model_path.lower():
+        output_dir = "output/results/naive"
+    elif "federated" in model_path.lower() and "dp" in model_path.lower():
+        output_dir = "output/results/federated_dp"
+    elif "federated" in model_path.lower():
+        output_dir = "output/results/federated"
+    else:
+        output_dir = "output/results/naive"  # Default
+    
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(f"{output_dir}/mia_roc_{name.replace('.', '_')}.png", dpi=300, bbox_inches='tight')
     plt.close()
 
     return results
@@ -293,25 +304,66 @@ if __name__ == "__main__":
         print("[ERROR] Data validation failed! Please check your data split.")
         exit(1)
 
-    # Run comprehensive attacks
+    # Run comprehensive attacks on our models
     models_to_test = [
-        ("../dp1/results/fl_dp_model_client_1.h5", "keras"),
-        ("../dp1/results/fl_dp_model_client_2.h5", "keras"),
-        ("../dp1/results/fl_dp_model_client_3.h5", "keras"),
-        ("../dp1/results/fl_dp_model_client_4.h5", "keras"),
-        ("../dp1/results/fl_dp_model_client_5.h5", "keras"),
-        ("../dp1/results/fl_dp_global_model_aggregated.h5", "keras"),
-        ("../dp1/results/naive_logistic_model.pkl", "sklearn"),
+        ("models/RF/Naive/rf_naive_model.pkl", "sklearn", "naive"),
+        ("models/RF/FL/federated_model.pkl", "sklearn", "federated"),
+        ("models/RF/FL+DP/federated_model_dp.pkl", "sklearn", "federated_dp"),
     ]
 
     all_results = {}
 
-    for model_path, framework in models_to_test:
+    for model_path, framework, model_type in models_to_test:
         if os.path.exists(model_path):
             results = run_comprehensive_attack(
                 model_path, X_member, X_nonmember, y_member, y_nonmember, framework
             )
             all_results[model_path] = results
+            
+            # Save JSON results
+            if results:
+                output_dir = f"output/results/{model_type}"
+                os.makedirs(output_dir, exist_ok=True)
+                
+                # Find the best attack result
+                best_result = None
+                best_auc = 0
+                for attack_type, result in results.items():
+                    if result is not None and result['auc'] > best_auc:
+                        best_auc = result['auc']
+                        best_result = result
+                
+                if best_result:
+                    json_results = {
+                        "model": model_type,
+                        "attack_type": "membership_inference",
+                        "best_attack": best_result['attack_name'],
+                        "results": {
+                            "accuracy": best_result['accuracy'],
+                            "auc": best_result['auc'],
+                            "precision": best_result['precision'],
+                            "recall": best_result['recall'],
+                            "f1_score": best_result['f1']
+                        },
+                        "all_attacks": {
+                            attack_type: {
+                                "accuracy": result['accuracy'],
+                                "auc": result['auc'],
+                                "precision": result['precision'],
+                                "recall": result['recall'],
+                                "f1_score": result['f1']
+                            } for attack_type, result in results.items() if result is not None
+                        },
+                        "metadata": {
+                            "samples_used": len(X_member) + len(X_nonmember),
+                            "timestamp": str(np.datetime64('now'))
+                        }
+                    }
+                    
+                    json_path = os.path.join(output_dir, f"mia_results_{model_type}.json")
+                    with open(json_path, 'w', encoding='utf-8') as f:
+                        json.dump(json_results, f, indent=2)
+                    print(f"[SAVED] MIA results saved to: {json_path}")
         else:
             print(f"[DEBUG] Model not found: {model_path}")
 

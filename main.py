@@ -305,13 +305,8 @@ def organize_result_files():
         if os.path.exists(source_dir):
             organize_attack_results(source_dir, target_dir, model_name)
     
-    # Organize inversion attack results
-    if os.path.exists("results/inversion_attack"):
-        organize_inversion_results()
-    
-    # Organize AIA attack results
-    if os.path.exists("results/attribute_inference"):
-        organize_aia_results()
+    # The attack scripts now save directly to output/results/, so no need for complex organization
+    logger.info("Attack results are now saved directly to output/results/ structure")
 
 
 def organize_attack_results(source_dir, target_dir, model_name):
@@ -336,7 +331,7 @@ def organize_inversion_results():
     """Organize inversion attack results"""
     logger = logging.getLogger(__name__)
     
-    source_dir = "results/inversion_attack"
+    source_dir = "output/results/inversion_attack"
     mappings = {
         "naive": "output/results/naive",
         "federated_+_dp": "output/results/federated_dp",  # Handle + in filename
@@ -368,7 +363,7 @@ def organize_aia_results():
     """Organize attribute inference attack results"""
     logger = logging.getLogger(__name__)
     
-    source_dir = "results/attribute_inference"
+    source_dir = "output/results/attribute_inference"
     mappings = {
         "naive": "output/results/naive",
         "federated_+_dp": "output/results/federated_dp",  # Handle + in filename  
@@ -394,6 +389,70 @@ def organize_aia_results():
         target_path = os.path.join(target_dir, target_filename)
         shutil.move(source_path, target_path)
         logger.debug(f"Moved {source_path} -> {target_path}")
+
+
+def organize_inversion_results_from_attacks():
+    """Organize inversion attack results from attacks/results/"""
+    logger = logging.getLogger(__name__)
+    
+    source_dir = "attacks/results/inversion_attack"
+    mappings = {
+        "naive": "output/results/naive",
+        "federated_+_dp": "output/results/federated_dp",  # Handle + in filename
+        "federated": "output/results/federated"
+    }
+    
+    for filename in os.listdir(source_dir):
+        source_path = os.path.join(source_dir, filename)
+        
+        # Determine target based on filename content
+        if "naive" in filename:
+            target_dir = mappings["naive"]
+            target_filename = filename
+        elif "federated_+_dp" in filename:
+            target_dir = mappings["federated_+_dp"] 
+            target_filename = filename.replace("federated_+_dp", "federated_dp")
+        elif "federated" in filename:
+            target_dir = mappings["federated"]
+            target_filename = filename
+        else:
+            continue  # Skip unknown files
+        
+        target_path = os.path.join(target_dir, target_filename)
+        shutil.copy2(source_path, target_path)  # Use copy2 instead of move to preserve original
+        logger.debug(f"Copied {source_path} -> {target_path}")
+
+
+def organize_aia_results_from_attacks():
+    """Organize attribute inference attack results from attacks/results/"""
+    logger = logging.getLogger(__name__)
+    
+    source_dir = "attacks/results/attribute_inference"
+    mappings = {
+        "naive": "output/results/naive",
+        "federated_+_dp": "output/results/federated_dp",  # Handle + in filename  
+        "federated": "output/results/federated"
+    }
+    
+    for filename in os.listdir(source_dir):
+        source_path = os.path.join(source_dir, filename)
+        
+        # Determine target based on filename content
+        if "naive" in filename:
+            target_dir = mappings["naive"]
+            target_filename = filename
+        elif "federated_+_dp" in filename:
+            target_dir = mappings["federated_+_dp"]
+            target_filename = filename.replace("federated_+_dp", "federated_dp")  
+        elif "federated" in filename:
+            target_dir = mappings["federated"]
+            target_filename = filename
+        else:
+            continue  # Skip unknown files
+        
+        target_path = os.path.join(target_dir, target_filename)
+        shutil.copy2(source_path, target_path)  # Use copy2 instead of move to preserve original
+        logger.debug(f"Copied {source_path} -> {target_path}")
 
 
 def generate_summary():
@@ -448,9 +507,18 @@ def collect_model_metrics(summary):
 def collect_attack_metrics(summary):
     """Collect attack performance metrics"""
     attack_files = [
+        # MIA attack results
         ("output/results/naive/mia_results_naive.json", "naive", "mia"),
         ("output/results/federated/mia_results_federated.json", "federated", "mia"),
-        ("output/results/federated_dp/mia_results_federated_dp.json", "federated_dp", "mia")
+        ("output/results/federated_dp/mia_results_federated_dp.json", "federated_dp", "mia"),
+        # Inversion attack results
+        ("output/results/naive/inversion_results_naive_rf.json", "naive", "inversion"),
+        ("output/results/federated/inversion_results_federated.json", "federated", "inversion"),
+        ("output/results/federated_dp/inversion_results_federated_dp.json", "federated_dp", "inversion"),
+        # AIA attack results
+        ("output/results/naive/aia_results_naive_rf.json", "naive", "aia"),
+        ("output/results/federated/aia_results_federated.json", "federated", "aia"),
+        ("output/results/federated_dp/aia_results_federated_dp.json", "federated_dp", "aia")
     ]
     
     for attack_file, model_name, attack_type in attack_files:

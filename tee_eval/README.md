@@ -48,7 +48,8 @@ mkdir -p sample_data gramine
 
 ### 1. Baseline (Vulnerable)
 ```bash
-./run_baseline.sh
+python run_baseline.py    # Cross-platform
+# OR: ./run_baseline.sh   # Linux only
 ```
 Shows how memory access patterns can leak:
 - Model coefficients during inference
@@ -57,7 +58,8 @@ Shows how memory access patterns can leak:
 
 ### 2. SGX Protected  
 ```bash
-./run_enclave.sh
+python run_enclave.py     # Cross-platform
+# OR: ./run_enclave.sh    # Linux only
 ```
 Shows how SGX enclave protects:
 - Model parameters are encrypted in memory
@@ -66,7 +68,8 @@ Shows how SGX enclave protects:
 
 ### 3. Security Comparison
 ```bash
-./compare_security.sh
+python compare_security.py   # Cross-platform
+# OR: ./compare_security.sh  # Linux only
 ```
 Runs both scenarios and demonstrates the security difference.
 
@@ -98,12 +101,24 @@ The Gramine manifest ensures:
 
 **Note**: This demo includes simulation mode for testing without SGX hardware.
 
-## Quick Test (Simulation Mode)
+## Quick Test (Cross-Platform)
+
+### Windows (Local Testing)
+```cmd
+cd tee_eval
+pip install -r requirements.txt
+python train_healthcare_model.py      # Train the model first
+python compare_security.py            # Run full demo
+```
+
+### Ubuntu/Linux (SGX Testing)
 ```bash
 cd tee_eval
 pip install -r requirements.txt
-python train_healthcare_model.py  # Train the model first
-./compare_security.sh              # Run full demo
+python train_healthcare_model.py      # Train the model first
+python compare_security.py            # Run full demo (with real SGX if available)
+# OR use the bash versions:
+# ./compare_security.sh
 ```
 
 ## Security Guarantees

@@ -1,6 +1,6 @@
 {
   "experiment_info": {
-    "timestamp": "2025-07-31T19:44:24.750826",
+    "timestamp": "2025-08-01T22:45:49.131239",
     "pipeline_version": "1.0",
     "models_trained": [
       "naive",
@@ -28,7 +28,7 @@
     },
     "federated_dp": {
       "accuracy": 0.9007488947036001,
-      "auc": 0.4833471902233798,
+      "auc": 0.4923649750029596,
       "n_clients": 5,
       "n_estimators": 100,
       "use_dp": true,
@@ -59,6 +59,57 @@
           "recall": 0.9999545165105067,
           "f1": 0.8997063728348832
         }
+      },
+      "inversion": {
+        "model": "Naive RF",
+        "attack_type": "model_inversion",
+        "results": {
+          "mse": 4.548348949331393e-05,
+          "plot_file": "inversion_naive_rf.png"
+        },
+        "metadata": {
+          "samples_used": 43972,
+          "timestamp": "2025-08-01T19:44:13"
+        }
+      },
+      "aia": {
+        "model": "Naive RF",
+        "attack_type": "attribute_inference",
+        "results": {
+          "accuracy": 0.5463931592831802,
+          "improvement_over_baseline": 0.04582461566451379,
+          "baseline_accuracy": 0.5005685436186664,
+          "plot_file": "aia_naive_rf.png"
+        },
+        "feature_importance": {
+          "top_features": [
+            {
+              "feature": "feat_1",
+              "importance": 0.29866097551003834
+            },
+            {
+              "feature": "feat_0",
+              "importance": 0.23695728657069115
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.19284890818398692
+            },
+            {
+              "feature": "feat_18",
+              "importance": 0.02238389706517185
+            },
+            {
+              "feature": "feat_17",
+              "importance": 0.019210743936072056
+            }
+          ]
+        },
+        "metadata": {
+          "samples_used": 43972,
+          "sensitive_column": 1,
+          "timestamp": "2025-08-01T19:44:23"
+        }
       }
     },
     "federated": {
@@ -76,24 +127,89 @@
           "precision": 0.8020088679757488,
           "recall": 0.9999774347865331,
           "f1": 0.8901186088318889
+        },
+        "loss": {
+          "auc": 0.559901238207304,
+          "accuracy": 0.812834805270016,
+          "precision": 0.8116880733944954,
+          "recall": 0.9982173481361134,
+          "f1": 0.8953408354922281
+        }
+      },
+      "inversion": {
+        "model": "Federated",
+        "attack_type": "model_inversion",
+        "results": {
+          "mse": 0.0992418088275115,
+          "plot_file": "inversion_federated.png"
+        },
+        "metadata": {
+          "samples_used": 44316,
+          "timestamp": "2025-08-01T19:44:15"
+        }
+      },
+      "aia": {
+        "model": "Federated",
+        "attack_type": "attribute_inference",
+        "results": {
+          "accuracy": 0.5959924180882751,
+          "improvement_over_baseline": 0.0959472876613412,
+          "baseline_accuracy": 0.5000451304269339,
+          "plot_file": "aia_federated.png"
+        },
+        "feature_importance": {
+          "top_features": [
+            {
+              "feature": "feat_1",
+              "importance": 0.2771486019027194
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.24930183491669844
+            },
+            {
+              "feature": "feat_0",
+              "importance": 0.22892527325697248
+            },
+            {
+              "feature": "feat_16",
+              "importance": 0.02014569763738748
+            },
+            {
+              "feature": "feat_18",
+              "importance": 0.020083977449628573
+            }
+          ]
+        },
+        "metadata": {
+          "samples_used": 44316,
+          "sensitive_column": 1,
+          "timestamp": "2025-08-01T19:44:37"
         }
       }
     },
     "federated_dp": {
       "mia": {
         "confidence": {
-          "auc": 0.525816336859468,
+          "auc": 0.5029180793288417,
           "accuracy": 0.7999241863571545,
           "precision": 0.7999386259431749,
           "recall": 0.9999774347865331,
           "f1": 0.8888420883727461
         },
         "entropy": {
-          "auc": 0.525816336859468,
+          "auc": 0.5029180793288417,
           "accuracy": 0.7999241863571545,
           "precision": 0.7999386259431749,
           "recall": 0.9999774347865331,
           "f1": 0.8888420883727461
+        },
+        "loss": {
+          "auc": 0.5516675110450235,
+          "accuracy": 0.8172169172728749,
+          "precision": 0.8146396230582346,
+          "recall": 0.9987589132593194,
+          "f1": 0.8973522017679021
         }
       }
     }

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import json
 from joblib import load
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
@@ -135,30 +136,63 @@ def run_attribute_inference(model_path, X_path, sensitive_col, model_name, outpu
     print(f"[SAVED] AIA plot saved to: {plot_path}")
     plt.close()
 
+    # Save results as JSON
+    json_results = {
+        "model": model_name,
+        "attack_type": "attribute_inference",
+        "results": {
+            "accuracy": acc,
+            "improvement_over_baseline": improvement,
+            "baseline_accuracy": majority_class_acc,
+            "plot_file": os.path.basename(plot_path)
+        },
+        "feature_importance": {
+            "top_features": [
+                {"feature": feature_names[i], "importance": float(importances[i])} 
+                for i in indices[:5]
+            ]
+        },
+        "metadata": {
+            "samples_used": len(X),
+            "sensitive_column": sensitive_col,
+            "timestamp": str(np.datetime64('now'))
+        }
+    }
+    
+    json_path = os.path.join(output_dir, f"aia_results_{model_name.replace(' ', '_').lower()}.json")
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(json_results, f, indent=2)
+    print(f"[SAVED] Results saved to: {json_path}")
+
     return acc, improvement
 
 
 def main():
-    output_dir = "results/attribute_inference"
     sensitive_col = 1  # Gender
     models = {
         "Naive RF": {
             "model": "models/RF/Naive/rf_naive_model.pkl",
-            "X": "models/RF/Naive/X_member.npy"
+            "X": "models/RF/Naive/X_member.npy",
+            "output_dir": "output/results/naive"
         },
         "Federated": {
             "model": "models/RF/FL/federated_model.pkl",
-            "X": "models/RF/FL/federated_X_train.npy"
+            "X": "models/RF/FL/federated_X_train.npy",
+            "output_dir": "output/results/federated"
         },
         "Federated + DP": {
             "model": "models/RF/FL+DP/federated_model_dp.pkl",
-            "X": "models/RF/FL+DP/federated_X_train.npy"
+            "X": "models/RF/FL+DP/federated_X_train.npy",
+            "output_dir": "output/results/federated_dp"
         }
     }
 
     all_results = {}
     for model_name, paths in models.items():
-        acc, improvement = run_attribute_inference(paths["model"], paths["X"], sensitive_col, model_name, output_dir)
+        # Create output directory for this model
+        os.makedirs(paths["output_dir"], exist_ok=True)
+        
+        acc, improvement = run_attribute_inference(paths["model"], paths["X"], sensitive_col, model_name, paths["output_dir"])
         all_results[model_name] = {"accuracy": acc, "improvement": improvement}
 
     print(f"\n{'=' * 60}")

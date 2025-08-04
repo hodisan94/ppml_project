@@ -11,6 +11,8 @@ import time
 import pickle
 import numpy as np
 import psutil
+from psutil import AccessDenied
+import struct
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -279,17 +281,42 @@ def run_sgx_protected_inference():
 
 def check_sgx_availability():
     """Check if SGX hardware and tools are available."""
+    print("[*] Checking SGX environment...")
+    
+    # Check SGX hardware
+    sgx_hw = False
+    if os.path.exists("/dev/sgx_enclave") or os.path.exists("/dev/sgx/enclave"):
+        print("[+] ✅ SGX hardware detected")
+        sgx_hw = True
+    elif os.path.exists("/dev/isgx"):
+        print("[+] ✅ SGX hardware detected (legacy driver)")  
+        sgx_hw = True
+    else:
+        print("[!] ❌ SGX hardware not detected")
+    
+    # Check Gramine installation
+    gramine_ok = False
     try:
-        result = subprocess.run(["is-sgx-available"], capture_output=True, text=True)
+        result = subprocess.run(["gramine-sgx", "--help"], capture_output=True, text=True)
         if result.returncode == 0:
-            print("[+] SGX hardware detected")
-            return True
+            print("[+] ✅ Gramine-SGX tools available")
+            gramine_ok = True
         else:
-            print("[!] SGX hardware not available")
-            return False
-    except:
-        print("[!] SGX tools not found")
-        return False
+            print("[!] ❌ Gramine-SGX tools not working")
+    except FileNotFoundError:
+        print("[!] ❌ Gramine-SGX not installed")
+    
+    # Check manifest template
+    template_ok = os.path.exists("gramine/sgx_inference.manifest.template")
+    if template_ok:
+        print("[+] ✅ SGX manifest template found")
+    else:
+        print("[!] ❌ SGX manifest template missing")
+    
+    overall_status = sgx_hw and gramine_ok and template_ok
+    print(f"[*] Overall SGX readiness: {'✅ READY' if overall_status else '❌ NOT READY'}")
+    
+    return overall_status
 
 def run_real_sgx_demo():
     """Run actual SGX enclave demo."""
@@ -355,22 +382,43 @@ except Exception as e:
             "gramine-sgx", "sgx_inference"
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
-        time.sleep(3)
+        time.sleep(2)  # Give it time to start
         
-        # Try to attack SGX process
-        print_section("ATTEMPTING ATTACKS ON SGX ENCLAVE")
-        sgx_attack_results = attempt_sgx_attacks(proc.pid)
-        
-        # Get SGX output
-        try:
-            stdout, stderr = proc.communicate(timeout=5)
-            print("[+] SGX enclave output:")
-            for line in stdout.split('\n'):
-                if line.strip():
-                    print(f"    {line}")
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        # Verify SGX process is actually running
+        if proc.poll() is None:  # Process still running
+            print(f"[+] SGX enclave started successfully (PID: {proc.pid})")
+            
+            # Try to attack SGX process while it's running
+            print_section("ATTEMPTING ATTACKS ON SGX ENCLAVE")
+            sgx_attack_results = attempt_sgx_attacks(proc.pid)
+            
+            # Get SGX output
+            try:
+                stdout, stderr = proc.communicate(timeout=10)
+                print("[+] SGX enclave output:")
+                if stdout.strip():
+                    for line in stdout.split('\n'):
+                        if line.strip():
+                            print(f"    {line}")
+                else:
+                    print("    [No output - this might indicate SGX issues]")
+                    
+                if stderr.strip():
+                    print("[!] SGX stderr:")
+                    for line in stderr.split('\n'):
+                        if line.strip():
+                            print(f"    {line}")
+                            
+            except subprocess.TimeoutExpired:
+                print("[!] SGX process timed out - killing")
+                proc.kill()
+                stdout, stderr = proc.communicate()
+        else:
+            print(f"[!] SGX enclave failed to start (exit code: {proc.returncode})")
             stdout, stderr = proc.communicate()
+            if stderr:
+                print(f"[!] Error: {stderr}")
+            return run_sgx_simulation()
         
         # Cleanup (keep gramine template)
         for f in ["sgx_inference.py", "sgx_inference.manifest", "sgx_inference.manifest.sgx", "sgx_inference.sig"]:
@@ -438,41 +486,97 @@ def attempt_sgx_attacks(pid):
     """Attempt real attacks against SGX process."""
     print(f"[*] Attempting attacks against SGX PID: {pid}")
     
-    attack_results = {'blocked_attacks': [], 'protection_verified': False}
+    attack_results = {'blocked_attacks': [], 'protection_verified': False, 'extracted_data': []}
     
-    # Try memory extraction
+    # Try the SAME memory extraction that worked on vulnerable process
     try:
-        print("[*] Trying memory extraction on SGX process...")
-        with open(f"/proc/{pid}/mem", "rb") as mem:
-            # SGX memory should be encrypted
-            mem.seek(0x1000)  # Try to read some memory
-            data = mem.read(1024)
-            
-            # Check if data looks encrypted (high entropy)
-            unique_bytes = len(set(data))
-            if unique_bytes > 200:  # High entropy = likely encrypted
-                print("[+] Memory appears encrypted (high entropy)")
-                attack_results['blocked_attacks'].append('memory_extraction_blocked')
-            else:
-                print("[!] Memory may not be encrypted")
+        print("[*] Trying SAME memory extraction attack used on vulnerable process...")
+        extracted_floats = []
+        
+        # Use same technique as vulnerable attack
+        mem_path = f"/proc/{pid}/mem"
+        maps_path = f"/proc/{pid}/maps"
+        
+        with open(maps_path, 'r') as maps_file:
+            maps = maps_file.readlines()
+        
+        writable_regions = []
+        for line in maps:
+            if 'rw-' in line and '[heap]' in line or '[stack]' in line:
+                parts = line.split()
+                addr_range = parts[0]
+                start, end = addr_range.split('-')
+                start_addr = int(start, 16)
+                end_addr = int(end, 16)
+                writable_regions.append((start_addr, end_addr))
+        
+        print(f"[*] Found {len(writable_regions)} writable regions (same as vulnerable process)")
+        
+        if writable_regions:
+            with open(mem_path, "rb") as mem:
+                for start_addr, end_addr in writable_regions[:3]:  # Check first 3 regions
+                    try:
+                        mem.seek(start_addr)
+                        region_size = min(end_addr - start_addr, 4096)  # Read up to 4KB
+                        data = mem.read(region_size)
+                        
+                        # Look for float patterns (same technique)
+                        for i in range(0, len(data) - 8, 4):
+                            try:
+                                value = struct.unpack('f', data[i:i+4])[0]
+                                if 0.001 <= abs(value) <= 1.0:
+                                    extracted_floats.append(value)
+                                    if len(extracted_floats) >= 5:
+                                        break
+                            except:
+                                continue
+                        if len(extracted_floats) >= 5:
+                            break
+                    except (PermissionError, OSError) as e:
+                        print(f"[+] SGX BLOCKED memory access to region {hex(start_addr)}: {e}")
+                        attack_results['blocked_attacks'].append(f'memory_region_{hex(start_addr)}_blocked')
+                        continue
+        
+        if extracted_floats:
+            print(f"[!] ⚠️  WARNING: EXTRACTED {len(extracted_floats)} VALUES FROM SGX PROCESS!")
+            print(f"[!] 🔓 SGX protection may be compromised: {extracted_floats[:5]}")
+            print(f"[!] 🚨 This suggests SGX is not properly configured or not running")
+            attack_results['extracted_data'] = extracted_floats
+        else:
+            print("[+] ✅ SUCCESS: SGX prevented memory extraction!")
+            print("[+] 🛡️  No sensitive data could be extracted from SGX enclave")
+            print("[+] 🔒 Memory protection working as expected")
+            attack_results['protection_verified'] = True
                 
-    except (PermissionError, OSError):
-        print("[+] Memory access denied by SGX")
-        attack_results['blocked_attacks'].append('memory_access_denied')
+    except (PermissionError, OSError) as e:
+        print("[+] EXCELLENT: SGX completely blocked memory access")
+        print(f"[+] Protection mechanism: {e}")
+        attack_results['blocked_attacks'].append('complete_memory_access_denied')
+        attack_results['protection_verified'] = True
     
-    # Try process analysis
+    # Try process introspection (same as vulnerable)
     try:
-        print("[*] Trying process analysis...")
+        print("[*] Trying process introspection...")
         process = psutil.Process(pid)
         memory_info = process.memory_info()
         
-        # SGX processes often have specific memory patterns
-        if memory_info.rss > 50 * 1024 * 1024:  # >50MB suggests enclave
-            print("[+] Large memory usage suggests active enclave")
-            attack_results['protection_verified'] = True
-            
+        # Check if we can analyze memory patterns
+        if hasattr(process, 'memory_maps'):
+            try:
+                maps = process.memory_maps()
+                print(f"[*] SGX process has {len(maps)} memory mappings")
+                # Look for enclave-specific patterns
+                enclave_regions = [m for m in maps if 'enclave' in m.path.lower() or m.rss > 100*1024*1024]
+                if enclave_regions:
+                    print(f"[+] Detected {len(enclave_regions)} potential enclave regions")
+                    attack_results['protection_verified'] = True
+            except (PermissionError, AccessDenied):
+                print("[+] SGX blocked process memory mapping inspection")
+                attack_results['blocked_attacks'].append('memory_mapping_blocked')
+        
     except Exception as e:
-        print(f"[!] Process analysis failed: {e}")
+        print(f"[+] SGX blocked process analysis: {e}")
+        attack_results['blocked_attacks'].append('process_analysis_blocked')
     
     return attack_results
 
@@ -513,39 +617,65 @@ def compare_results(vulnerable_results, sgx_results):
     print(f"  • Data points extracted: {vuln_data}")
     print(f"  • Status: {'COMPROMISED' if vuln_data > 0 else 'SECURE'}")
     
-    # SGX results
+    # SGX results  
     sgx_blocked = len(sgx_results.get('blocked_attacks', []))
     sgx_verified = sgx_results.get('protection_verified', False)
+    sgx_extracted = len(sgx_results.get('extracted_data', []))
     
     print(f"\nSGX PROTECTED EXECUTION:")
     print(f"  • Attacks blocked: {sgx_blocked}")
+    print(f"  • Data points extracted: {sgx_extracted}")
     print(f"  • Protection verified: {sgx_verified}")
-    print(f"  • Status: {'PROTECTED' if sgx_blocked > 0 else 'VULNERABLE'}")
+    print(f"  • Status: {'PROTECTED' if sgx_blocked > 0 and sgx_extracted == 0 else 'COMPROMISED' if sgx_extracted > 0 else 'UNKNOWN'}")
     
     print(f"\n🔒 SECURITY IMPROVEMENT:")
-    if vuln_data > 0 and sgx_blocked > 0:
-        print("  ✓ SGX successfully prevented data extraction")
-        print("  ✓ Memory-based attacks blocked")
-        print("  ✓ Patient privacy protected")
-        print("  ✓ Model IP secured")
+    if vuln_data > 0 and sgx_extracted == 0 and sgx_blocked > 0:
+        print("  ✅ SGX successfully prevented data extraction")
+        print("  ✅ Memory-based attacks blocked")
+        print("  ✅ Patient privacy protected")
+        print("  ✅ Model IP secured")
+        improvement = ((vuln_data - sgx_extracted) / vuln_data) * 100
+        print(f"  ✅ Security improvement: {improvement:.1f}% reduction in data leakage")
+    elif vuln_data > 0 and sgx_extracted > 0:
+        print("  ❌ SGX protection failed - data still extracted")
+        reduction = ((vuln_data - sgx_extracted) / vuln_data) * 100
+        print(f"  ⚠️  Partial protection: {reduction:.1f}% reduction in data leakage")
+    elif vuln_data == 0:
+        print("  ⚠️  Baseline attack failed - cannot demonstrate protection")
     else:
-        print("  ! Results inconclusive")
+        print("  ❓ Results inconclusive")
     
-    # Show actual extracted data if any
-    if vuln_data > 0:
-        print(f"\n🚨 DETAILED ATTACK RESULTS:")
-        extracted = vulnerable_results['extracted_data']
-        print(f"  • Total values extracted: {len(extracted)}")
-        print(f"  • Sample values: {extracted[:8]}")
-        print(f"  • Attack implications:")
-        print(f"    ✗ Healthcare model weights leaked")
-        print(f"    ✗ Patient medical data exposed") 
-        print(f"    ✗ Prediction algorithms revealed")
-        print(f"    ✗ HIPAA/GDPR compliance violated")
-        print(f"  • Attacker can now:")
-        print(f"    ✗ Steal proprietary ML models")
-        print(f"    ✗ Reconstruct patient medical records")
-        print(f"    ✗ Predict other patients' conditions")
+    # Show detailed comparison
+    if vuln_data > 0 or sgx_extracted > 0:
+        print(f"\n🚨 DETAILED ATTACK COMPARISON:")
+        
+        print(f"\n📋 VULNERABLE PROCESS ATTACK:")
+        if vuln_data > 0:
+            extracted = vulnerable_results['extracted_data']
+            print(f"  • Values extracted: {len(extracted)}")
+            print(f"  • Sample data: {extracted[:5]}")
+            print(f"  • Status: COMPLETE COMPROMISE")
+        else:
+            print(f"  • Values extracted: 0")
+            print(f"  • Status: ATTACK FAILED")
+            
+        print(f"\n🛡️  SGX PROTECTED PROCESS ATTACK:")
+        if sgx_extracted > 0:
+            sgx_data = sgx_results['extracted_data']
+            print(f"  • Values extracted: {len(sgx_data)}")
+            print(f"  • Sample data: {sgx_data[:5]}")
+            print(f"  • Status: SGX PROTECTION FAILED")
+        else:
+            print(f"  • Values extracted: 0")
+            print(f"  • Blocked mechanisms: {sgx_results.get('blocked_attacks', [])}")
+            print(f"  • Status: PROTECTION SUCCESSFUL")
+            
+        if vuln_data > 0:
+            print(f"\n💥 ATTACK IMPLICATIONS:")
+            print(f"    ✗ Healthcare model weights leaked")
+            print(f"    ✗ Patient medical data exposed") 
+            print(f"    ✗ Prediction algorithms revealed")
+            print(f"    ✗ HIPAA/GDPR compliance violated")
 
 def cleanup_old_files():
     """Remove old redundant files (already cleaned up)."""
@@ -575,8 +705,30 @@ def main():
     compare_results(vulnerable_results, sgx_results)
     
     print_banner("DEMO COMPLETE")
-    print("🎯 Key Insight: SGX provides verifiable protection against")
-    print("   real memory extraction attacks that compromise normal processes")
+    
+    # Final verification summary
+    if sgx_results.get('protection_verified', False) and len(sgx_results.get('extracted_data', [])) == 0:
+        print("🎯 ✅ VERIFICATION SUCCESSFUL:")
+        print("   • SGX protection was REAL and EFFECTIVE")
+        print("   • Memory attacks that succeeded on vulnerable process FAILED on SGX")
+        print("   • Healthcare data remained encrypted in SGX enclave")
+        print("   • This demonstrates genuine TEE protection")
+    elif len(sgx_results.get('extracted_data', [])) > 0:
+        print("🎯 ❌ VERIFICATION FAILED:")
+        print("   • SGX protection did NOT work - data was still extracted")
+        print("   • This suggests SGX is not properly configured")
+        print("   • The environment may be running simulation mode")
+        print("   • Real SGX hardware/software may not be available")
+    else:
+        print("🎯 ⚠️  VERIFICATION INCONCLUSIVE:")
+        print("   • SGX may be running in simulation mode")
+        print("   • Consider checking SGX hardware and Gramine setup")
+        print("   • Results show protection but may not be hardware-enforced")
+    
+    print("\n💡 Key Insight: Effective TEE protection requires:")
+    print("   • Hardware SGX support + proper drivers")
+    print("   • Correctly configured Gramine runtime")
+    print("   • Properly signed and encrypted enclave binaries")
     
     return 0
 

@@ -4,7 +4,7 @@
 
 # Based on the successful python.manifest.template from amiller/gramine-rsademo
 
-loader.entrypoint = "file:{{ gramine.libos }}"
+loader.entrypoint.uri = "file:{{ gramine.libos }}"
 libos.entrypoint = "{{ entrypoint }}"
 
 loader.log_level = "{{ log_level }}"
@@ -28,7 +28,6 @@ fs.mounts = [
 ]
 
 sgx.debug = {{ debug }}
-sgx.nonpie_binary = {{ nonpie_binary }}
 sgx.enclave_size = "{{ enclave_size }}"
 sgx.max_threads = {{ max_threads }}
 

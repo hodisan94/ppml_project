@@ -297,12 +297,21 @@ def check_sgx_availability():
     # Check Gramine installation
     gramine_ok = False
     try:
-        result = subprocess.run(["gramine-sgx", "--help"], capture_output=True, text=True)
-        if result.returncode == 0:
+        # Test gramine-manifest first (this should work)
+        result1 = subprocess.run(["gramine-manifest", "--help"], capture_output=True, text=True)
+        # Test gramine-sgx-sign (this should work)  
+        result2 = subprocess.run(["gramine-sgx-sign", "--help"], capture_output=True, text=True)
+        # Test if gramine-sgx exists (don't use --help, just check if command exists)
+        result3 = subprocess.run(["which", "gramine-sgx"], capture_output=True, text=True)
+        
+        if result1.returncode == 0 and result2.returncode == 0 and result3.returncode == 0:
             print("[+] ✅ Gramine-SGX tools available")
             gramine_ok = True
         else:
             print("[!] ❌ Gramine-SGX tools not working")
+            print(f"    gramine-manifest: {'✅' if result1.returncode == 0 else '❌'}")
+            print(f"    gramine-sgx-sign: {'✅' if result2.returncode == 0 else '❌'}")
+            print(f"    gramine-sgx binary: {'✅' if result3.returncode == 0 else '❌'}")
     except FileNotFoundError:
         print("[!] ❌ Gramine-SGX not installed")
     

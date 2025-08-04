@@ -19,7 +19,7 @@ fs.mounts = [
     { path = "/usr", uri = "file:/usr" },
     { path = "/tmp", type = "tmpfs" },
     { path = "/demo_data", uri = "file:demo_data" },
-    { path = ".", uri = "file:." },
+    { path = "/current", uri = "file:." },
 ]
 
 # Trusted files (signed/encrypted in enclave)

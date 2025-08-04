@@ -706,18 +706,27 @@ def main():
     
     print_banner("DEMO COMPLETE")
     
-    # Final verification summary
-    if sgx_results.get('protection_verified', False) and len(sgx_results.get('extracted_data', [])) == 0:
+    # Final verification summary - detect if we actually ran SGX or simulation
+    ran_simulation = 'memory_extraction' in sgx_results.get('blocked_attacks', [])
+    sgx_extracted = len(sgx_results.get('extracted_data', []))
+    
+    if ran_simulation:
+        print("🎯 ⚠️  RUNNING IN SIMULATION MODE:")
+        print("   • This was NOT real SGX protection - just a simulation")
+        print("   • Gramine-SGX tools are not working properly") 
+        print("   • You need to install Gramine correctly to get real SGX")
+        print("   • See the setup guide: gramine_setup_guide.md")
+        print("   • Current status: SIMULATED PROTECTION (not real security)")
+    elif sgx_results.get('protection_verified', False) and sgx_extracted == 0:
         print("🎯 ✅ VERIFICATION SUCCESSFUL:")
         print("   • SGX protection was REAL and EFFECTIVE")
         print("   • Memory attacks that succeeded on vulnerable process FAILED on SGX")
         print("   • Healthcare data remained encrypted in SGX enclave")
         print("   • This demonstrates genuine TEE protection")
-    elif len(sgx_results.get('extracted_data', [])) > 0:
+    elif sgx_extracted > 0:
         print("🎯 ❌ VERIFICATION FAILED:")
         print("   • SGX protection did NOT work - data was still extracted")
         print("   • This suggests SGX is not properly configured")
-        print("   • The environment may be running simulation mode")
         print("   • Real SGX hardware/software may not be available")
     else:
         print("🎯 ⚠️  VERIFICATION INCONCLUSIVE:")

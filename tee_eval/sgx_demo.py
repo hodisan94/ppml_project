@@ -295,21 +295,7 @@ def run_real_sgx_demo():
     """Run actual SGX enclave demo."""
     print("[+] Running inference inside SGX enclave...")
     
-    # Use the proper Gramine manifest template
-    print("[*] Generating SGX manifest from template...")
-    try:
-        # Generate manifest from template
-        result = subprocess.run([
-            "gramine-manifest", 
-            "gramine/sgx_inference.manifest.template", 
-            "sgx_inference.manifest"
-        ], capture_output=True, text=True, check=True)
-        print("[+] SGX manifest generated successfully")
-    except subprocess.CalledProcessError as e:
-        print(f"[!] Manifest generation failed: {e.stderr}")
-        return run_sgx_simulation()
-    
-    # Create SGX inference script
+    # Create SGX inference script FIRST (before manifest generation)
     sgx_script = '''
 import pickle
 import numpy as np
@@ -340,6 +326,20 @@ except Exception as e:
     
     with open("sgx_inference.py", "w") as f:
         f.write(sgx_script)
+    
+    # Now generate the manifest template (after sgx_inference.py exists)
+    print("[*] Generating SGX manifest from template...")
+    try:
+        # Generate manifest from template
+        result = subprocess.run([
+            "gramine-manifest", 
+            "gramine/sgx_inference.manifest.template", 
+            "sgx_inference.manifest"
+        ], capture_output=True, text=True, check=True)
+        print("[+] SGX manifest generated successfully")
+    except subprocess.CalledProcessError as e:
+        print(f"[!] Manifest generation failed: {e.stderr}")
+        return run_sgx_simulation()
     
     try:
         # Sign the manifest for SGX

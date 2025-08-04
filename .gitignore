@@ -2,3 +2,9 @@
 __pycache__/
 *.py[cod]
 .venv/*
+output/models/*
+output/sgx_inference.manifest
+output/
+output/
+__pycache__/
+*.py[cod]

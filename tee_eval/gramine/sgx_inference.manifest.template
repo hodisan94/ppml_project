@@ -1,0 +1,65 @@
+loader.entrypoint = "file:{{ gramine.libos }}"
+libos.entrypoint = "/usr/bin/python3"
+
+loader.argv = ["python3", "sgx_inference.py"]
+
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+
+# SGX Configuration
+sgx.enclave_size = "512M"
+sgx.max_threads = 16
+sgx.debug = true
+sgx.nonpie_binary = true
+
+# File system
+fs.mounts = [
+    { path = "/lib", uri = "file:/lib" },
+    { path = "{{ arch_libdir }}", uri = "file:{{ arch_libdir }}" },
+    { path = "/usr", uri = "file:/usr" },
+    { path = "/tmp", type = "tmpfs" },
+    { path = "/demo_data", uri = "file:demo_data" },
+    { path = ".", uri = "file:." },
+]
+
+# Trusted files (signed/encrypted in enclave)
+sgx.trusted_files = [
+    "file:{{ gramine.libos }}",
+    "file:/usr/bin/python3",
+    "file:sgx_inference.py",
+    "file:demo_data/model.pkl",
+    "file:demo_data/patient.pkl",
+]
+
+# Python libraries (trusted)
+sgx.trusted_files.python = [
+    "file:{{ python.stdlib }}",
+    "file:{{ python.distlib }}",
+    "file:/usr/lib/python3/dist-packages/",
+    "file:/usr/local/lib/python3.*/dist-packages/",
+]
+
+# System libraries (trusted)
+sgx.trusted_files.libs = [
+    "file:{{ arch_libdir }}/",
+    "file:/lib/",
+    "file:/usr/lib/",
+    "file:/usr/{{ arch_libdir }}/",
+]
+
+# Allowed files (can be accessed but not protected)
+sgx.allowed_files = [
+    "file:/tmp/",
+    "file:/proc/cpuinfo",
+    "file:/proc/meminfo",
+    "file:/proc/version",
+    "file:/etc/host.conf",
+    "file:/etc/hosts",
+    "file:/etc/nsswitch.conf",
+    "file:/etc/passwd",
+    "file:/etc/group",
+    "file:/etc/resolv.conf",
+]
+
+# Threading and networking
+sys.enable_sigterm_injection = true
+sys.enable_extra_runtime_domain_names_conf = true

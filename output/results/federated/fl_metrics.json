@@ -1,7 +1,0 @@
-{
-  "accuracy": 0.9007312614259598,
-  "auc": 0.5705417418434372,
-  "n_clients": 5,
-  "n_estimators": 100,
-  "trees_per_client": 20
-}

@@ -21,14 +21,15 @@ python sgx_demo.py
 ## What You'll See
 
 ### Phase 1: Vulnerable Execution
-- ✗ **ACTUAL DATA EXTRACTED**: `[-0.02534531, -0.01855379, 0.01228397, ...]`
-- ✗ **Attack Methods**: Direct memory read via `/proc/{pid}/mem`
-- ✗ **Result**: Healthcare model coefficients leaked
+- ✗ **DETAILED ATTACK SUCCESS**: Shows actual extracted float values
+- ✗ **Memory Inspection**: Scans 400+ memory regions, extracts model coefficients  
+- ✗ **Data Leaked**: Healthcare model weights + patient data exposed
+- ✗ **Impact**: HIPAA/GDPR violations, model IP theft possible
 
 ### Phase 2: SGX Protected Execution  
 - ✓ **Memory Access Denied**: SGX hardware blocks `/proc/{pid}/mem`
 - ✓ **Data Encrypted**: Model runs inside encrypted enclave memory
-- ✓ **Result**: Same attacks fail completely
+- ✓ **Real Protection**: Same attacks fail completely with hardware enforcement
 
 ## Technical Details
 

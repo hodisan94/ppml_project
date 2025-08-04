@@ -10,10 +10,10 @@ import datetime
 import platform
 from typing import Dict, List, Any
 
-def generate_comprehensive_report(vulnerable_results: Dict, sgx_results: Dict, 
-                                 model_info: Dict, hardware_info: Dict = None) -> str:
+def generate_experiment_results_report(vulnerable_results: Dict, sgx_results: Dict, 
+                                      model_info: Dict, hardware_info: Dict = None) -> str:
     """
-    Generate a comprehensive markdown report of the SGX security demonstration.
+    Generate a dynamic experiment results report from actual demo runs.
     
     Args:
         vulnerable_results: Results from attacking the vulnerable process
@@ -22,7 +22,7 @@ def generate_comprehensive_report(vulnerable_results: Dict, sgx_results: Dict,
         hardware_info: System and SGX hardware information
     
     Returns:
-        Formatted markdown report string
+        Formatted markdown report string with actual experimental data
     """
     
     # Calculate protection effectiveness
@@ -316,20 +316,24 @@ def save_report(report_content: str, filename: str = None) -> str:
     """Save the report to a markdown file."""
     if filename is None:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"sgx_security_demonstration_report_{timestamp}.md"
+        filename = f"sgx_experiment_results_{timestamp}.md"
     
+    # Ensure the directory exists
+    if not os.path.exists("tee_eval"):
+        os.makedirs("tee_eval")
+        
     filepath = os.path.join("tee_eval", filename)
     
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(report_content)
     
-    return filepath
+    return os.path.abspath(filepath)
 
 def generate_and_save_report(vulnerable_results: Dict, sgx_results: Dict, 
                            model_info: Dict, hardware_info: Dict = None) -> str:
-    """Generate and save the comprehensive report."""
-    report = generate_comprehensive_report(vulnerable_results, sgx_results, 
-                                         model_info, hardware_info)
+    """Generate and save the experimental results report."""
+    report = generate_experiment_results_report(vulnerable_results, sgx_results, 
+                                               model_info, hardware_info)
     filepath = save_report(report)
     return filepath
 
@@ -361,7 +365,7 @@ if __name__ == "__main__":
         'os': 'Ubuntu 22.04'
     }
     
-    report = generate_comprehensive_report(example_vulnerable, example_sgx, 
-                                         example_model, example_hardware)
+    report = generate_experiment_results_report(example_vulnerable, example_sgx, 
+                                           example_model, example_hardware)
     print("Generated example report:")
     print(report[:1000] + "...")

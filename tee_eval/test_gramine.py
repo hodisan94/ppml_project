@@ -38,7 +38,7 @@ fs.mounts = [
     { path = "/lib64", uri = "file:/lib64" },
     { path = "/usr/lib", uri = "file:/usr/lib" },
     { path = "/usr", uri = "file:/usr" },
-    { path = ".", uri = "file:." },
+    { path = "/tmp", type = "tmpfs" },
 ]
 
 # Trusted files
@@ -53,7 +53,7 @@ sgx.trusted_files = [
     "file:/usr/lib/",
 ]
 
-# Allowed files
+# Allowed files  
 sgx.allowed_files = [
     "file:/proc/cpuinfo",
     "file:/proc/meminfo",

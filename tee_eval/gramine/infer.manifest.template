@@ -1,9 +1,9 @@
 # Gramine manifest for healthcare ML inference SGX demo
 
 loader.entrypoint = "file:{{ gramine.libos }}"
-libos.entrypoint = "{{ python.stdlib }}/python3"
+libos.entrypoint = "/usr/bin/python3"
 
-loader.log_level = "{{ log_level }}"
+loader.log_level = "warning"
 
 # Python executable and arguments
 loader.argv = [
@@ -12,19 +12,17 @@ loader.argv = [
     "--secure"
 ]
 
-# Environment variables
-loader.env.PYTHONPATH = "{{ python.stdlib }}:{{ python.distlib }}"
-loader.env.PYTHONHOME = "{{ python.home }}"
+# Environment variables  
 loader.env.PYTHONDONTWRITEBYTECODE = "1"
 loader.env.PYTHONUNBUFFERED = "1"
 
 # Trust Intel SGX driver
 sgx.trusted_files = [
     "file:{{ gramine.libos }}",
-    "file:{{ python.stdlib }}/",
-    "file:{{ python.distlib }}/",
+    "file:/usr/",
+    "file:/lib/",
     "file:../infer_healthcare.py",
-    "file:../healthcare_model.pkl",
+    "file:../healthcare_model.pkl", 
     "file:../sample_data/patient_input.pkl",
 ]
 

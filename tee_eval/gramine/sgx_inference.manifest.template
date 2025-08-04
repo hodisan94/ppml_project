@@ -1,4 +1,4 @@
-loader.entrypoint = "file:{{ gramine.libos }}"
+loader.entrypoint.uri = "file:{{ gramine.libos }}"
 libos.entrypoint = "/usr/bin/python3"
 
 loader.argv = ["python3", "sgx_inference.py"]
@@ -9,7 +9,6 @@ loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib/x86_64-linux-gnu:/usr/lib"
 sgx.enclave_size = "512M"
 sgx.max_threads = 16
 sgx.debug = true
-sgx.nonpie_binary = true
 
 # File system
 fs.mounts = [

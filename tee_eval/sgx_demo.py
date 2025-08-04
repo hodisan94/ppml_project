@@ -67,6 +67,8 @@ def prepare_demo_data():
     
     print(f"[+] Model trained: {len(feature_names)} features")
     print(f"[+] Model coefficients: {model.coef_[0][:3]}...")
+    print(f"[+] Sample patient data: {X_test[0][:3]}...")
+    print(f"[+] Expected prediction: {y_test[0]}")
     return model, X_test[0], y_test[0], feature_names
 
 def run_vulnerable_inference():
@@ -89,18 +91,28 @@ with open('demo_data/patient.pkl', 'rb') as f:
     patient_data = pickle.load(f)
 patient_features = patient_data['data']
 
-print("INFERENCE: Model loaded in memory")
-print(f"INFERENCE: Model coefficients: {model.coef_[0]}")
-print(f"INFERENCE: Patient data: {patient_features}")
+print("INFERENCE: Healthcare ML model loaded in memory")
+print(f"INFERENCE: Model has {len(model.coef_[0])} features")
+print(f"INFERENCE: Model coefficients (SENSITIVE): {model.coef_[0]}")
+print(f"INFERENCE: Patient data (PRIVATE): {patient_features}")
 
 # Perform prediction
 prediction = model.predict([patient_features])[0]
 prob = model.predict_proba([patient_features])[0][1]
+linear_combination = np.dot(model.coef_[0], patient_features) + model.intercept_[0]
 
-print(f"INFERENCE: Prediction = {prediction}, Probability = {prob:.3f}")
+print(f"INFERENCE: Linear combination: {linear_combination:.6f}")
+print(f"INFERENCE: Prediction = {prediction} (0=No Readmission, 1=Readmission)")
+print(f"INFERENCE: Risk probability = {prob:.3f}")
+
+if prediction == 1:
+    print("INFERENCE: ALERT - High readmission risk patient!")
+else:
+    print("INFERENCE: Low readmission risk patient")
 
 # Keep process alive for memory extraction
 print("INFERENCE: Process ready for memory attack...")
+print("INFERENCE: Sensitive data exposed in process memory...")
 sys.stdout.flush()
 time.sleep(10)  # Give attacker time to extract memory
 """
@@ -124,10 +136,16 @@ time.sleep(10)  # Give attacker time to extract memory
     # Get process output
     try:
         stdout, stderr = proc.communicate(timeout=5)
-        print("[+] Vulnerable process output:")
+        print_section("VULNERABLE PROCESS OUTPUT")
+        print("[+] What the healthcare ML service exposed:")
         for line in stdout.split('\n'):
             if line.strip():
-                print(f"    {line}")
+                if "SENSITIVE" in line or "PRIVATE" in line:
+                    print(f"    🚨 {line}")
+                elif "INFERENCE:" in line:
+                    print(f"    ℹ️  {line}")
+                else:
+                    print(f"    {line}")
     except subprocess.TimeoutExpired:
         proc.kill()
         stdout, stderr = proc.communicate()
@@ -188,7 +206,15 @@ def perform_real_memory_attack(pid):
                     continue
         
         if extracted_floats:
-            print(f"[!] EXTRACTED MODEL DATA: {extracted_floats[:5]}...")
+            print(f"[!] SUCCESS: EXTRACTED {len(extracted_floats)} FLOAT VALUES FROM MEMORY!")
+            print(f"[!] Sample extracted data: {extracted_floats[:10]}")
+            print(f"[!] This could be:")
+            print(f"    • Model coefficients (weights): {extracted_floats[:5]}...")
+            print(f"    • Patient feature values: {extracted_floats[5:10] if len(extracted_floats) > 5 else '[]'}")
+            print(f"[!] With {len(extracted_floats)} values, attacker can reconstruct:")
+            print(f"    ✗ Healthcare ML model parameters")
+            print(f"    ✗ Patient private data")
+            print(f"    ✗ Prediction logic")
             attack_results['extracted_data'] = extracted_floats
             attack_results['methods'].append('direct_memory_read')
             
@@ -507,10 +533,19 @@ def compare_results(vulnerable_results, sgx_results):
     
     # Show actual extracted data if any
     if vuln_data > 0:
-        print(f"\n🚨 ACTUAL EXTRACTED DATA:")
+        print(f"\n🚨 DETAILED ATTACK RESULTS:")
         extracted = vulnerable_results['extracted_data']
-        print(f"  Sample values: {extracted[:5]}")
-        print(f"  This could be model coefficients or patient data!")
+        print(f"  • Total values extracted: {len(extracted)}")
+        print(f"  • Sample values: {extracted[:8]}")
+        print(f"  • Attack implications:")
+        print(f"    ✗ Healthcare model weights leaked")
+        print(f"    ✗ Patient medical data exposed") 
+        print(f"    ✗ Prediction algorithms revealed")
+        print(f"    ✗ HIPAA/GDPR compliance violated")
+        print(f"  • Attacker can now:")
+        print(f"    ✗ Steal proprietary ML models")
+        print(f"    ✗ Reconstruct patient medical records")
+        print(f"    ✗ Predict other patients' conditions")
 
 def cleanup_old_files():
     """Remove old redundant files (already cleaned up)."""

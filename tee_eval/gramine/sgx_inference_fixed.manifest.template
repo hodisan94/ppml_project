@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright (C) 2021 Intel Corporation
+#                    Paweł Marczewski <pawel@invisiblethingslab.com>
+
+# Based on the successful python.manifest.template from amiller/gramine-rsademo
+
+loader.entrypoint = "file:{{ gramine.libos }}"
+libos.entrypoint = "{{ entrypoint }}"
+
+loader.log_level = "{{ log_level }}"
+
+loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib/x86_64-linux-gnu:/usr/lib"
+loader.env.PYTHONPATH = "/usr/lib/python3.10:/usr/lib/python3/dist-packages"
+loader.env.PYTHONHOME = "/usr"
+
+loader.insecure__use_cmdline_argv = true
+
+sys.enable_sigterm_injection = true
+
+# See https://gramine.readthedocs.io/en/latest/manifest-syntax.html#fs-mount-points
+fs.mounts = [
+  { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
+  { path = "/usr/lib/python3.10", uri = "file:/usr/lib/python3.10" },
+  { path = "/usr/lib/python3", uri = "file:/usr/lib/python3" },
+  { path = "/usr", uri = "file:/usr" },
+  { path = "/etc", uri = "file:/etc" },
+  { path = "/current", uri = "file:." },
+]
+
+sgx.debug = {{ debug }}
+sgx.nonpie_binary = {{ nonpie_binary }}
+sgx.enclave_size = "{{ enclave_size }}"
+sgx.max_threads = {{ max_threads }}
+
+sgx.trusted_files = [
+  "file:{{ gramine.libos }}",
+  "file:{{ entrypoint }}",
+  "file:{{ gramine.runtimedir() }}/",
+  "file:sgx_inference.py",
+
+  # Python dependencies - Updated for Python 3.10
+  "file:/usr/bin/python3",
+  "file:/usr/bin/python3.10",
+  
+  # Standard Python library paths  
+  "file:{{ python.stdlib }}/",
+  "file:{{ python.distlib }}/",
+  
+  # Python 3.10 specific paths
+  "file:/usr/lib/python3.10/",
+  "file:/usr/lib/python3/dist-packages/",
+  "file:/usr/local/lib/python3.10/dist-packages/",
+  "file:/lib/python3.10/",
+  
+  # System libraries
+  "file:/lib/x86_64-linux-gnu/",
+  "file:/usr/lib/x86_64-linux-gnu/",
+  
+  # Essential system files
+  "file:/etc/mime.types",
+  "file:/etc/default/locale",
+  "file:/usr/share/locale/",
+  "file:/usr/lib/locale/",
+  "file:/usr/share/X11/locale/",
+]
+
+sgx.allowed_files = [
+  "file:/tmp",
+  "file:/dev/null",
+  "file:/dev/zero",
+  "file:/dev/random",
+  "file:/dev/urandom",
+  "file:/proc/meminfo",
+  "file:/proc/cpuinfo",
+  "file:/sys/devices/system/cpu",
+  "file:/etc/nsswitch.conf",
+  "file:/etc/ethers",
+  "file:/etc/hosts",
+  "file:/etc/group",
+  "file:/etc/passwd",
+  "file:/etc/resolv.conf",
+]

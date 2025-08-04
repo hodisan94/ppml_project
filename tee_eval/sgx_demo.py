@@ -14,7 +14,7 @@ import psutil
 from psutil import AccessDenied
 import struct
 import datetime
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -57,7 +57,7 @@ def prepare_demo_data():
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    model = LogisticRegression(random_state=42)
+    model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42)
     model.fit(X_train, y_train)
     
     # Save for demo
@@ -69,7 +69,7 @@ def prepare_demo_data():
         pickle.dump({'data': X_test[0], 'label': y_test[0]}, f)
     
     print(f"[+] Model trained: {len(feature_names)} features")
-    print(f"[+] Model coefficients: {model.coef_[0][:3]}...")
+    print(f"[+] Model trees: {model.n_estimators} estimators")
     print(f"[+] Sample patient data: {X_test[0][:3]}...")
     print(f"[+] Expected prediction: {y_test[0]}")
     return model, X_test[0], y_test[0], feature_names
@@ -95,16 +95,16 @@ with open('demo_data/patient.pkl', 'rb') as f:
 patient_features = patient_data['data']
 
 print("INFERENCE: Healthcare ML model loaded in memory")
-print(f"INFERENCE: Model has {len(model.coef_[0])} features")
-print(f"INFERENCE: Model coefficients (SENSITIVE): {model.coef_[0]}")
+print(f"INFERENCE: Random Forest with {model.n_estimators} trees loaded")
+print(f"INFERENCE: Model trees (SENSITIVE): {[tree.tree_.feature[0] for tree in model.estimators_[:3]]}")
 print(f"INFERENCE: Patient data (PRIVATE): {patient_features}")
 
 # Perform prediction
 prediction = model.predict([patient_features])[0]
 prob = model.predict_proba([patient_features])[0][1]
-linear_combination = np.dot(model.coef_[0], patient_features) + model.intercept_[0]
+feature_importance = model.feature_importances_
 
-print(f"INFERENCE: Linear combination: {linear_combination:.6f}")
+print(f"INFERENCE: Feature importance (SENSITIVE): {feature_importance}")
 print(f"INFERENCE: Prediction = {prediction} (0=No Readmission, 1=Readmission)")
 print(f"INFERENCE: Risk probability = {prob:.3f}")
 
@@ -317,8 +317,8 @@ def check_sgx_availability():
     except FileNotFoundError:
         print("[!] ❌ Gramine-SGX not installed")
     
-    # Check manifest template
-    template_ok = os.path.exists("gramine/sgx_inference.manifest.template")
+    # Check manifest template (try both fixed and original)
+    template_ok = os.path.exists("gramine/sgx_inference_fixed.manifest.template") or os.path.exists("gramine/sgx_inference.manifest.template")
     if template_ok:
         print("[+] ✅ SGX manifest template found")
     else:
@@ -334,32 +334,41 @@ def run_real_sgx_demo():
     print("[+] Running inference inside SGX enclave...")
     
     # Create SGX inference script FIRST (before manifest generation)
-    sgx_script = '''
+    sgx_script = '''#!/usr/bin/env python3
 import pickle
 import numpy as np
 import sys
+import os
 
-print("SGX: Starting inference inside enclave")
+print("SGX: Starting Random Forest inference inside enclave")
+print(f"SGX: Python version: {sys.version}")
+print(f"SGX: Working directory: {os.getcwd()}")
 
 try:
+    print("SGX: Loading model...")
     with open('demo_data/model.pkl', 'rb') as f:
         model_data = pickle.load(f)
     model = model_data['model']
+    print(f"SGX: Random Forest model loaded - {model.n_estimators} trees")
     
+    print("SGX: Loading patient data...")
     with open('demo_data/patient.pkl', 'rb') as f:
         patient_data = pickle.load(f)
     patient_features = patient_data['data']
+    print(f"SGX: Patient data loaded - {len(patient_features)} features")
     
-    print("SGX: Model and data loaded (encrypted in memory)")
-    
+    print("SGX: Performing secure inference...")
     prediction = model.predict([patient_features])[0]
     prob = model.predict_proba([patient_features])[0][1]
     
     print(f"SGX: Prediction = {prediction}, Probability = {prob:.3f}")
-    print("SGX: Sensitive data never exposed outside enclave")
+    print("SGX: ✅ Inference complete - sensitive data protected in enclave")
     
 except Exception as e:
-    print(f"SGX: Error: {e}")
+    print(f"SGX: ❌ Error during inference: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 '''
     
     with open("sgx_inference.py", "w") as f:
@@ -367,11 +376,25 @@ except Exception as e:
     
     # Now generate the manifest template (after sgx_inference.py exists)
     print("[*] Generating SGX manifest from template...")
+    
+    # Use fixed template if available, fallback to original
+    if os.path.exists("gramine/sgx_inference_fixed.manifest.template"):
+        template_file = "gramine/sgx_inference_fixed.manifest.template"
+        print("[*] Using FIXED manifest template (Python 3.10 compatible)")
+    else:
+        template_file = "gramine/sgx_inference.manifest.template"
+        print("[*] Using original manifest template")
+    
     try:
-        # Generate manifest from template
+        # Generate manifest from template with proper parameters
         result = subprocess.run([
             "gramine-manifest", 
-            "gramine/sgx_inference.manifest.template", 
+            "-Dlog_level=error",
+            "-Dentrypoint=sgx_inference.py",
+            "-Ddebug=true",
+            "-Denclave_size=256M",
+            "-Dmax_threads=4",
+            template_file, 
             "sgx_inference.manifest"
         ], capture_output=True, text=True, check=True)
         print("[+] SGX manifest generated successfully")

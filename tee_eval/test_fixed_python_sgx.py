@@ -13,12 +13,15 @@ def test_fixed_python_sgx():
     print("🔧 Testing Fixed Python 3.10 SGX Configuration")
     print("=" * 60)
     
+    # Store original working directory
+    original_cwd = os.getcwd()
+    
     # Create temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
         print(f"[*] Created test files in: {temp_dir}")
         
-        # Copy our fixed manifest template
-        fixed_manifest_src = "tee_eval/gramine/sgx_inference_fixed.manifest.template"
+        # Copy our fixed manifest template (use absolute path)
+        fixed_manifest_src = os.path.join(original_cwd, "tee_eval/gramine/sgx_inference_fixed.manifest.template")
         manifest_template = os.path.join(temp_dir, "python.manifest.template")
         shutil.copy(fixed_manifest_src, manifest_template)
         
@@ -37,7 +40,6 @@ print("✅ Python execution successful!")
         os.chmod(test_python_script, 0o755)
         
         # Change to temp directory
-        original_cwd = os.getcwd()
         try:
             os.chdir(temp_dir)
             
@@ -48,7 +50,6 @@ print("✅ Python execution successful!")
                 '-Dlog_level=error',
                 '-Dentrypoint=sgx_inference.py',
                 '-Ddebug=true',
-                '-Dnonpie_binary=true',
                 '-Denclave_size=256M',
                 '-Dmax_threads=4',
                 'python.manifest.template',

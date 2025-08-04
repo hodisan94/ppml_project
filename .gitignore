@@ -4,3 +4,7 @@ __pycache__/
 .venv/*
 output/models/*
 output/sgx_inference.manifest
+output/
+output/
+__pycache__/
+*.py[cod]

@@ -1,22 +1,24 @@
 # SGX Healthcare Demo - Quick Start
 
-## Setup (Run Once)
+## Ultra-Simple Demo
 ```bash
-python setup.py              # Install deps and check environment
-python test_demo.py          # Verify everything works
+python simple_demo.py        # Basic concept demonstration
 ```
 
-## Full Demo
+## Full Demo with Real Attacks  
 ```bash
-python compare_security.py   # Run complete security comparison
+python demo_runner.py        # Complete demo with memory attacks
+```
+
+## Setup (if needed)
+```bash
+python setup.py              # Install deps and check environment
 ```
 
 ## Individual Components
 ```bash
 python train_healthcare_model.py   # Train the model
 python infer_healthcare.py         # Test inference
-python run_baseline.py             # Vulnerable execution
-python run_enclave.py              # SGX protected execution
 ```
 
 ## Files Created

@@ -4,6 +4,7 @@ libos.entrypoint = "/usr/bin/python3"
 loader.argv = ["python3", "sgx_inference.py"]
 
 loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib/x86_64-linux-gnu:/usr/lib"
+loader.env.PYTHONPATH = "/usr/lib/python3.10:/usr/lib/python3/dist-packages:/usr/local/lib/python3.10/dist-packages"
 
 # SGX Configuration
 sgx.enclave_size = "512M"
@@ -34,11 +35,13 @@ sgx.trusted_files = [
     "file:demo_data/model.pkl", 
     "file:demo_data/patient.pkl",
     
-    # Python standard library
+    # Python 3.10 standard library (explicit paths)
     "file:{{ python.stdlib }}/",
     "file:{{ python.distlib }}/",
+    "file:/usr/lib/python3.10/",
     "file:/usr/lib/python3/dist-packages/",
     "file:/usr/local/lib/python3.10/dist-packages/",
+    "file:/lib/python3.10/",
     
     # System libraries
     "file:/lib/x86_64-linux-gnu/",

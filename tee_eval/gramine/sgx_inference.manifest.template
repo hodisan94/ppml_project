@@ -3,7 +3,7 @@ libos.entrypoint = "/usr/bin/python3"
 
 loader.argv = ["python3", "sgx_inference.py"]
 
-loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib/x86_64-linux-gnu:/usr/lib"
 
 # SGX Configuration
 sgx.enclave_size = "512M"
@@ -14,7 +14,9 @@ sgx.nonpie_binary = true
 # File system
 fs.mounts = [
     { path = "/lib", uri = "file:/lib" },
-    { path = "{{ arch_libdir }}", uri = "file:{{ arch_libdir }}" },
+    { path = "/lib64", uri = "file:/lib64" },
+    { path = "/usr/lib", uri = "file:/usr/lib" },
+    { path = "/usr/lib/x86_64-linux-gnu", uri = "file:/usr/lib/x86_64-linux-gnu" },
     { path = "/usr", uri = "file:/usr" },
     { path = "/tmp", type = "tmpfs" },
     { path = "/demo_data", uri = "file:demo_data" },
@@ -23,34 +25,34 @@ fs.mounts = [
 
 # Trusted files (signed/encrypted in enclave)
 sgx.trusted_files = [
+    # Core system
     "file:{{ gramine.libos }}",
     "file:/usr/bin/python3",
+    "file:/usr/bin/python3.10",
+    
+    # Demo files
     "file:sgx_inference.py",
-    "file:demo_data/model.pkl",
+    "file:demo_data/model.pkl", 
     "file:demo_data/patient.pkl",
-]
-
-# Python libraries (trusted)
-sgx.trusted_files.python = [
-    "file:{{ python.stdlib }}",
-    "file:{{ python.distlib }}",
+    
+    # Python standard library
+    "file:{{ python.stdlib }}/",
+    "file:{{ python.distlib }}/",
     "file:/usr/lib/python3/dist-packages/",
-    "file:/usr/local/lib/python3.*/dist-packages/",
-]
-
-# System libraries (trusted)
-sgx.trusted_files.libs = [
-    "file:{{ arch_libdir }}/",
-    "file:/lib/",
+    "file:/usr/local/lib/python3.10/dist-packages/",
+    
+    # System libraries
+    "file:/lib/x86_64-linux-gnu/",
+    "file:/lib64/", 
     "file:/usr/lib/",
-    "file:/usr/{{ arch_libdir }}/",
+    "file:/usr/lib/x86_64-linux-gnu/",
 ]
 
 # Allowed files (can be accessed but not protected)
 sgx.allowed_files = [
     "file:/tmp/",
     "file:/proc/cpuinfo",
-    "file:/proc/meminfo",
+    "file:/proc/meminfo", 
     "file:/proc/version",
     "file:/etc/host.conf",
     "file:/etc/hosts",

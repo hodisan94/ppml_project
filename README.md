@@ -37,55 +37,31 @@ SGX-based runtime protection: model inference inside secure enclaves shields bot
 | Federated Learning     | \~0.901  | \~0.568       | \~0.561 | \~0.0992      | \~0.604      | Moderate      |
 | FL + DP (ε‑controlled) | \~0.901  | \~0.489       | \~0.559 | \~0.0992      | \~0.498      | Low           |
 
-FL alone slightly improves utility while reducing vulnerability to inference attacks.
-
-Adding DP maintains accuracy but further suppresses inference attack success.
-
-FL+DP brings Attribute Inference Attack accuracy down to ~0.498—close to random guessing.
-
-Hardware-layer defense with SGX (via Gramine-based enclave) completely prevents memory-leakage attacks, blocking extraction of floating-point parameters and input data—even in privileged OS contexts.
+  FL alone slightly improves utility while reducing vulnerability to inference attacks.
+  
+  Adding DP maintains accuracy but further suppresses inference attack success.
+  
+  FL+DP brings Attribute Inference Attack accuracy down to ~0.498—close to random guessing.
+  
+  Hardware-layer defense with SGX (via Gramine-based enclave) completely prevents memory-leakage attacks, blocking extraction of floating-point parameters and input data—even in privileged OS contexts.
 
 **Technical Stack**
-Python for data preprocessing, attack simulation, and RF training.
-
-Federated ensemble using majority voting aggregation.
-
-Gaussian noise addition to prediction vectors with privacy budget management.
-
-Intel SGX + Gramine for enclave-based inference isolation (memory & process protections).
+  Python for data preprocessing, attack simulation, and RF training.
+  
+  Federated ensemble using majority voting aggregation.
+  
+  Gaussian noise addition to prediction vectors with privacy budget management.
+  
+  Intel SGX + Gramine for enclave-based inference isolation (memory & process protections).
 
 **Why This Matters**
 Our approach offers a multi-layered privacy strategy:
 
-Federated Learning decentralizes training.
-
-Differential Privacy mitigates output-level inference risks.
-
-SGX enclaves provide runtime confidentiality against memory attacks.
-
-Together, these defenses present a robust PPML framework grounded in high real-world applicability—especially in regulated domains like healthcare.
-
-
-References
-This work builds on concepts from Privacy‑Preserving ML literature, including Federated Learning, Differential Privacy, and SGX-based execution isolation 
-arxiv.org
-+7
-bigdl.readthedocs.io
-+7
-arxiv.org
-+7
-arxiv.org
-+1
-pmc.ncbi.nlm.nih.gov
-gramine.readthedocs.io
-+3
-arxiv.org
-+3
-arxiv.org
-+3
-arxiv.org
-arxiv.org
-+1
-gramine.readthedocs.io
-. It delivers a comprehensive empirical assessment similar in spirit to recent studies on responding to real inference and memory-leakage threats—specifically tailored to Random Forests, tabular healthcare-style data, and multi-attack simulations.
+  Federated Learning decentralizes training.
+  
+  Differential Privacy mitigates output-level inference risks.
+  
+  SGX enclaves provide runtime confidentiality against memory attacks.
+  
+  Together, these defenses present a robust PPML framework grounded in high real-world applicability—especially in regulated domains like healthcare.
 

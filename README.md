@@ -1,4 +1,5 @@
-### ****PPML Project****
+### ****Can PPML Keep Your Data Private? Evaluating Privacy Techniques
+Against Inference Attacks****
 Privacy‑Preserving Machine Learning (PPML) with Random Forests — combining Federated Learning, Differential Privacy, and Intel SGX to defend against inference and memory-leakage threats.
 
 ### ****Overview****
@@ -107,4 +108,17 @@ Runtime isolation from the OS and hypervisor
 | Sensitive Data Leaked     | Model weights exposed                           | None                                      |
 | Protection Effectiveness  | —                                               | **100.0% reduction in exposure**          |
 
+
+
+---
+
+## 👥 Authors & Contact
+
+This project was developed by:
+
+- **Noam Tarshish** – [noamtars@post.bgu.ac.il](mailto:noamtars@post.bgu.ac.il)  
+- **Daniel Hodisan** – [hodisan@post.bgu.ac.il](mailto:hodisan@post.bgu.ac.il)  
+- **Lavi Ben-Shimol** – [laviben@post.bgu.ac.il](mailto:laviben@post.bgu.ac.il)
+
+For questions, collaborations, or feedback, feel free to reach out!
 

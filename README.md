@@ -98,4 +98,13 @@ Attestation and measurement of model + input files
 
 Runtime isolation from the OS and hypervisor
 
+### 🛡️ SGX Protection Summary
+
+| **Attack Vector**         | **Unprotected**                                 | **SGX-Protected**                         |
+|---------------------------|--------------------------------------------------|-------------------------------------------|
+| Memory Extraction         | 10 sensitive float values extracted             | 0 values extracted *(blocked)*            |
+| Process Mapping Access    | Full process memory accessible via `/proc`      | Restricted; enclave memory hidden         |
+| Sensitive Data Leaked     | Model weights exposed                           | None                                      |
+| Protection Effectiveness  | —                                               | **100.0% reduction in exposure**          |
+
 

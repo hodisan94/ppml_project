@@ -1,20 +1,40 @@
-# Privacy-Preserving Machine Learning (PPML) Project
+****PPML Project****
+Privacy‑Preserving Machine Learning (PPML) with Random Forests — combining Federated Learning, Differential Privacy, and Intel SGX to defend against inference and memory-leakage threats.
 
-This project demonstrates a privacy-preserving ML pipeline using federated learning, differential privacy, and trusted execution environments (TEEs) with Enarx.
+****Overview*****
+This project evaluates the effectiveness of privacy-preserving techniques for Random Forest classifiers on sensitive tabular (e.g. healthcare) data.
 
-## Structure
+We compare three training configurations:
 
-- `data/`: Data preprocessing scripts
-- `models/`: Logistic regression implementation
-- `federated/`: Federated learning client/server code
-- `privacy/`: Differential privacy utilities
-- `tee/`: Enarx-related scripts and Wasm modules
-- `attacks/`: Attack simulations (e.g., MIA, inversion)
-- `utils/`: Shared utility functions
-- `main.py`: Entry point script
+Centralized (Naïve RF)
 
-## Setup
+Federated Learning (FL)
 
-```bash
-pip install -r requirements.txt
-```
+Federated Learning with output-level Gaussian Differential Privacy (FL+DP)
+
+We simulate three major privacy attacks:
+
+Membership Inference Attack (MIA)
+
+Model Inversion Attack
+
+Attribute Inference Attack (AIA)
+
+Finally, we protect inference time using Intel SGX enclaves, defending against privileged memory extraction and process introspection adversaries.
+
+**Features**
+End-to-end data pipeline: dataset preprocessing, federated training, and evaluation of inference attacks.
+
+Output-level Gaussian DP: noise added to prediction vectors before aggregation; tuned via ε (epsilon).
+
+SGX-based runtime protection: model inference inside secure enclaves shields both model parameters and input features.
+
+**Key Findings**
+
+| Configuration          | Accuracy | AUC (utility) | MIA AUC | Inversion MSE | AIA Accuracy | Privacy Leaks |
+| ---------------------- | -------- | ------------- | ------- | ------------- | ------------ | ------------- |
+| Naïve RF (centralized) | \~0.895  | \~0.592       | \~0.665 | \~0.0001      | \~0.546      | High          |
+| Federated Learning     | \~0.901  | \~0.568       | \~0.561 | \~0.0992      | \~0.604      | Moderate      |
+| FL + DP (ε‑controlled) | \~0.901  | \~0.489       | \~0.559 | \~0.0992      | \~0.498      | Low           |
+
+

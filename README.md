@@ -1,5 +1,4 @@
-### ****Can PPML Keep Your Data Private? Evaluating Privacy Techniques
-Against Inference Attacks****
+### ****Can PPML Keep Your Data Private? Evaluating Privacy Techniques Against Inference Attacks****
 Privacy‑Preserving Machine Learning (PPML) with Random Forests — combining Federated Learning, Differential Privacy, and Intel SGX to defend against inference and memory-leakage threats.
 
 ### ****Overview****

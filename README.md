@@ -65,3 +65,37 @@ Our approach offers a multi-layered privacy strategy:
   
   Together, these defenses present a robust PPML framework grounded in high real-world applicability—especially in regulated domains like healthcare.
 
+
+🔐 Intel SGX Protection
+To defend against runtime memory-level attacks, we deployed the trained Random Forest model inside a Trusted Execution Environment (TEE) using Intel SGX.
+
+✅ What SGX Adds
+While Federated Learning and Differential Privacy protect against inference-time threats, SGX addresses a different attack surface: adversaries with root-level access who attempt to extract model parameters or input data from process memory during inference.
+
+🛡️ Threats Simulated
+We tested two common attack vectors:
+
+Direct Memory Extraction via /proc/[pid]/mem
+
+Process Mapping Inspection via /proc/[pid]/maps and tools like psutil
+
+🧪 Results
+Attack Type	Without SGX	With SGX
+Memory Extraction	10 float values recovered	0 recovered (blocked)
+Process Mapping Access	Full memory visible	Enclave hidden
+Sensitive Data Leaked	Model weights + inputs	None
+
+💡 Conclusion: SGX completely eliminated memory-level leakage — making it an essential hardware-level defense that complements software-level privacy methods like FL and DP.
+
+🧰 SGX Integration
+Built using Gramine, a lightweight LibOS for running unmodified Python inference scripts inside SGX enclaves.
+
+Enclave setup includes:
+
+Manifest definition for memory and I/O policies
+
+Attestation and measurement of model + input files
+
+Runtime isolation from the OS and hypervisor
+
+

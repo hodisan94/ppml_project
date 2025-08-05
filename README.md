@@ -1,7 +1,7 @@
 ### ****PPML Project****
 Privacy‑Preserving Machine Learning (PPML) with Random Forests — combining Federated Learning, Differential Privacy, and Intel SGX to defend against inference and memory-leakage threats.
 
-****Overview*****
+###****Overview****
 This project evaluates the effectiveness of privacy-preserving techniques for Random Forest classifiers on sensitive tabular (e.g. healthcare) data.
 
 We compare three training configurations:
@@ -22,14 +22,14 @@ Attribute Inference Attack (AIA)
 
 Finally, we protect inference time using Intel SGX enclaves, defending against privileged memory extraction and process introspection adversaries.
 
-**Features**
+###**Features**
 End-to-end data pipeline: dataset preprocessing, federated training, and evaluation of inference attacks.
 
 Output-level Gaussian DP: noise added to prediction vectors before aggregation; tuned via ε (epsilon).
 
 SGX-based runtime protection: model inference inside secure enclaves shields both model parameters and input features.
 
-**📊 Key Findings**
+###**📊 Key Findings**
 
 | Configuration          | Accuracy | AUC (utility) | MIA AUC | Inversion MSE | AIA Accuracy | Privacy Leaks |
 | ---------------------- | -------- | ------------- | ------- | ------------- | ------------ | ------------- |
@@ -45,7 +45,7 @@ SGX-based runtime protection: model inference inside secure enclaves shields bot
   
   Hardware-layer defense with SGX (via Gramine-based enclave) completely prevents memory-leakage attacks, blocking extraction of floating-point parameters and input data—even in privileged OS contexts.
 
-**Technical Stack**
+###**Technical Stack**
   Python for data preprocessing, attack simulation, and RF training.
   
   Federated ensemble using majority voting aggregation.
@@ -54,7 +54,7 @@ SGX-based runtime protection: model inference inside secure enclaves shields bot
   
   Intel SGX + Gramine for enclave-based inference isolation (memory & process protections).
 
-**Why This Matters**
+###**Why This Matters**
 Our approach offers a multi-layered privacy strategy:
 
   Federated Learning decentralizes training.
@@ -66,28 +66,28 @@ Our approach offers a multi-layered privacy strategy:
   Together, these defenses present a robust PPML framework grounded in high real-world applicability—especially in regulated domains like healthcare.
 
 
-🔐 Intel SGX Protection
+###🔐 Intel SGX Protection
 To defend against runtime memory-level attacks, we deployed the trained Random Forest model inside a Trusted Execution Environment (TEE) using Intel SGX.
 
-What SGX Adds
+###What SGX Adds
 While Federated Learning and Differential Privacy protect against inference-time threats, SGX addresses a different attack surface: adversaries with root-level access who attempt to extract model parameters or input data from process memory during inference.
 
-**Threats Simulated**
+###**Threats Simulated**
 We tested two common attack vectors:
 
 Direct Memory Extraction via /proc/[pid]/mem
 
 Process Mapping Inspection via /proc/[pid]/maps and tools like psutil
 
-**Results**
+###**Results**
 Attack Type	Without SGX	With SGX
 Memory Extraction	10 float values recovered	0 recovered (blocked)
 Process Mapping Access	Full memory visible	Enclave hidden
 Sensitive Data Leaked	Model weights + inputs	None
 
-**Conclusion:** SGX completely eliminated memory-level leakage — making it an essential hardware-level defense that complements software-level privacy methods like FL and DP.
+###**Conclusion:** SGX completely eliminated memory-level leakage — making it an essential hardware-level defense that complements software-level privacy methods like FL and DP.
 
-**SGX Integration**
+###**SGX Integration**
 Built using Gramine, a lightweight LibOS for running unmodified Python inference scripts inside SGX enclaves.
 
 Enclave setup includes:
